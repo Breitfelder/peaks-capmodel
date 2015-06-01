@@ -1,17 +1,44 @@
+## no archives
+*.zip
+*.gz
+
+## no derived resources
 *.class
-*.log
-
-# sbt specific
-.cache
-.history
-.lib/
-dist/*
+bin/
 target/
-lib_managed/
-src_managed/
-project/boot/
-project/plugins/project/
+project/
+felix-cache/
 
-# Scala-IDE specific
-.scala_dependencies
-.worksheet
+resources/projects/
+tmp/
+*.dot
+
+## various other file types we don't want to have in the repository:
+.DS_Store
+*~
+*#
+*.licensed
+*.aux
+*_trace
+## Intellij Project Files
+*.iml
+.idea/
+out/
+output/
+input/
+*.eml
+20140527 PEAKS Verlängerung.docx
+20140527 PEAKS Verlängerung.pdf
+.cache
+peaks-main/results
+*.bbl
+*.blg
+/results/
+papers/CapModelForJava/src/*.log
+*.out
+papers/CapModelForJava/src/*.pdf
+papers/OCapsStudy/src/*.log
+papers/OCapsStudy/src/*.pdf
+papers/CapModelForJava/src/document.sublime-workspace
+papers/OCapsStudy/src/document.sublime-workspace
+Icon?
