@@ -1,0 +1,16 @@
+Capability;Keywords
+CLASSLOADING;classloader, load a class
+CLIPBOARD;clipboard, copy, paste
+DEBUG;jvm, debug, intrumentation, debugging
+FS;filesystem, file, folder, directory, path
+GUI;textfield, menubar, user interface, canvas, paint, editor, color, rendering, render
+INPUT;press key, mouse, keyboard, trackball, pen
+NATIVE;
+NET;network, socket, port, tcp, udp, ip, host, hostname, protocol, connection, http, imap, pop3, smtp, ssl, mail, transport, mime
+OS;windows, registry
+PRINT;printer, paper
+REFLECTION;reflection, class, field, method, attribute, annotation
+SECURITY;security, security provider, policy, privilege, authority
+SOUND;sound, midi, wave, aiff, mp3, media
+SYSTEM;system, command line, execute, process, thread, environment, runtime, hardware
+UNSAFE;pointer, memory address, memory access, unsafe
