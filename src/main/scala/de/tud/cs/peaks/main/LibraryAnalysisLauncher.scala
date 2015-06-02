@@ -71,15 +71,20 @@ object LibraryAnalysisLauncher {
     def main(args : Array[String]) {
         var validInput = false
         var userInput = 0
+        
+        if(args.contains("-help"))
+          LibraryCapabilityAnalysis.analysis.printUsage()
+        
         while(!validInput){
             printMenu()
             userInput = scala.io.StdIn.readInt()
-            validInput = userInput == 1 || userInput == 2
+            validInput = Seq(1,2,3).contains(userInput)
         }
         val argsWithRTJar = args ++ Array("""-cp="resources\jre_7.0_60\rt.jar"""")
         userInput match {
             case 1 => LibraryCapabilityAnalysis.main(argsWithRTJar)
             case 2 => CapabilitySliceAnalysis.main(argsWithRTJar)
+            case 3 => LibraryCapabilityAnalysis.analysis.printUsage()
         }
     }
 }
