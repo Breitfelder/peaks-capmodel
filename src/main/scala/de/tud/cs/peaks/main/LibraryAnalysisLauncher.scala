@@ -50,7 +50,8 @@ object LibraryAnalysisLauncher {
         val lineSep = System.getProperty("line.separator")
         println(
             s"$lineSep[1] Capability analysis for libraries.$lineSep" +
-            s"[2] Sliced capability analysis for projects."
+            s"[2] Sliced capability analysis for projects.$lineSep" +
+            s"[3] Help."
         )
     }
     
@@ -64,9 +65,7 @@ object LibraryAnalysisLauncher {
     }
     
     /**
-     * 
-     * -lc to lunch the Library Analysis
-     * -psa to lunch the capability analysis of used library slices
+     * Entry point regarding the console. 
      */
     def main(args : Array[String]) {
         var validInput = false
