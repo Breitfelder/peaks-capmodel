@@ -79,7 +79,7 @@ object LibraryAnalysisLauncher {
             userInput = scala.io.StdIn.readInt()
             validInput = Seq(1,2,3).contains(userInput)
         }
-        val argsWithRTJar = args ++ Array("""-cp="resources\jre_7.0_60\rt.jar"""")
+        val argsWithRTJar = args ++ Array("""-cp="resources/jre_7.0_60/rt.jar"""")
         userInput match {
             case 1 => LibraryCapabilityAnalysis.main(argsWithRTJar)
             case 2 => CapabilitySliceAnalysis.main(argsWithRTJar)
