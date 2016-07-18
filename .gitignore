@@ -42,3 +42,6 @@ papers/OCapsStudy/src/*.pdf
 papers/CapModelForJava/src/document.sublime-workspace
 papers/OCapsStudy/src/document.sublime-workspace
 Icon?
+.cache-main
+.classpath
+.project
