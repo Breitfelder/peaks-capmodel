@@ -1,26 +1,25 @@
 package de.tud.cs.peaks.repackaging
 
 import java.io.FileOutputStream
-import java.security.KeyStore
-import java.security.KeyPairGenerator
 import java.math.BigInteger
-import javax.security.auth.x500.X500Principal
-import java.security.cert.X509Certificate
+import java.nio.file.Files
+import java.nio.file.Paths
 import java.security.KeyPair
-import sun.security.x509.CertAndKeyGen
-import sun.security.x509.X500Name
-import java.util.Date
-import sun.security.x509.CertificateSubjectName
-import sun.security.x509.CertificateX509Key
-import sun.security.x509.CertificateVersion
+import java.security.KeyPairGenerator
+import java.security.KeyStore
 import java.security.SecureRandom
-import sun.security.x509.CertificateIssuerName
-import sun.security.x509.X509CertInfo
-import sun.security.x509.CertificateSerialNumber
-import sun.security.x509.CertificateAlgorithmId
-import sun.security.x509.CertificateValidity
+import java.security.cert.X509Certificate
+import java.util.Date
+
 import sun.security.x509.AlgorithmId
+import sun.security.x509.CertificateAlgorithmId
+import sun.security.x509.CertificateSerialNumber
+import sun.security.x509.CertificateValidity
+import sun.security.x509.CertificateVersion
+import sun.security.x509.CertificateX509Key
+import sun.security.x509.X500Name
 import sun.security.x509.X509CertImpl
+import sun.security.x509.X509CertInfo
 
 object SignerCheck {
   def main(args: Array[String]): Unit = {
@@ -41,6 +40,9 @@ object SignerCheck {
     
     // trial
     val sjf = new SignedJarFile(new FileOutputStream("test.jar"), keystore, keyname, keypass)
+      
+    val fileContent : Array[Byte] = Files.readAllBytes(Paths.get("/Users/benhermann/Code/peaks-capmodel/target/scala-2.11/classes/de/tud/cs/peaks/repackaging/SignedJarFile.class"))
+    sjf.addFile("de/tud/cs/peaks/repackaging/SignedJarFile.class", fileContent)
     sjf.close()
   }
   
