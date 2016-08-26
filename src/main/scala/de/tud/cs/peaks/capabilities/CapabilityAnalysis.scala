@@ -29,6 +29,7 @@
 package de.tud.cs.peaks.capabilities
 
 import java.net.URL
+
 import scala.annotation.migration
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.HashSet
@@ -51,6 +52,7 @@ import de.tud.cs.peaks.extractor.CapabilityMapping
 import de.tud.cs.peaks.opalreports.CapabilityReport
 import de.tud.cs.peaks.opalreports.CapabilityAnaylsisResult
 import org.opalj.br.analyses.ReportableAnalysisResult
+import org.opalj.log.GlobalLogContext
 
 /**
  * This Scala trait represents the capability inference algorithm.
@@ -71,25 +73,25 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
     val _ALLOWED_PARAMS = Seq("-lm", "-CL", "-CB", "-DB", "-FS", "-GU", "-IN", "-OS", "-NT", "-PR", "-RF", "-SC", "-SD", "-SY", "-UN")
 
     val _PARAM_MAP = Map(
-            "-CL" -> Capability.ClassLoading,
-            "-CB" -> Capability.Clipboard,
-            "-DB" -> Capability.Debug,
-            "-FS" -> Capability.Filesystem, 
-            "-GU" -> Capability.GUI,
-            "-IN" -> Capability.Input,
-            "-OS" -> Capability.Os, 
-            "-NT" -> Capability.Network,
-            "-PR" -> Capability.Print,
-            "-RF" -> Capability.Reflection,
-            "-SC" -> Capability.Security,
-            "-SD" -> Capability.Sound, 
-            "-SY" -> Capability.System,
-            "-UN" -> Capability.Unsafe)
+        "-CL" -> Capability.ClassLoading,
+        "-CB" -> Capability.Clipboard,
+        "-DB" -> Capability.Debug,
+        "-FS" -> Capability.Filesystem,
+        "-GU" -> Capability.GUI,
+        "-IN" -> Capability.Input,
+        "-OS" -> Capability.Os,
+        "-NT" -> Capability.Network,
+        "-PR" -> Capability.Print,
+        "-RF" -> Capability.Reflection,
+        "-SC" -> Capability.Security,
+        "-SD" -> Capability.Sound,
+        "-SY" -> Capability.System,
+        "-UN" -> Capability.Unsafe)
 
     /**
-     * @see [AnalysisExecuter#printUsage]
-     */
-    override def printUsage = super.printUsage
+      * @see [AnalysisExecuter#printUsage]
+      */
+    def printUsage = super.printUsage(GlobalLogContext)
 
     /**
      * @see [AnalysisExecuter#analysisSpecificParametersDescription]
@@ -131,13 +133,15 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
      * @param project Project of the current context.
      */
     def isInterfaceOrAbstractType(caller: Method, pcs: UShortSet, project: Project[URL]): Boolean = {
-        return pcs.collectFirst(pc ⇒ caller.body.get.instructions(pc) match {
-            case INVOKEINTERFACE(_, _, _) ⇒ true
-            case INVOKEVIRTUAL(ObjectType("java/io/InputStream"), _, _) ⇒ true
-            case INVOKEVIRTUAL(ObjectType("java/io/OutputStream"), _, _) ⇒ true
-            case INVOKEVIRTUAL(rt, _, _) ⇒ checkAbstractType(caller, rt, project)
-            case _ ⇒ caller.body.isEmpty || isUnimplementedMethod(caller, project)
-        }).get
+        return pcs.exists { pc =>
+                caller.body.get.instructions(pc) match {
+                    case INVOKEINTERFACE(_, _, _) ⇒ true
+                    case INVOKEVIRTUAL(ObjectType("java/io/InputStream"), _, _) ⇒ true
+                    case INVOKEVIRTUAL(ObjectType("java/io/OutputStream"), _, _) ⇒ true
+                    case INVOKEVIRTUAL(rt, _, _) ⇒ checkAbstractType(caller, rt, project)
+                    case _ ⇒ caller.body.isEmpty || isUnimplementedMethod(caller, project)
+                }
+            }
     }
 
     /**
@@ -190,10 +194,12 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
      * @param pcs The set of program counters of the of the instructions in the method body of the caller method.
      */
     def nonObjectCall(caller: Method, pcs: UShortSet): Boolean = {
-        return pcs.collectFirst(pc ⇒ caller.body.get.instructions(pc) match {
-            case INVOKEVIRTUAL(ObjectType.Object, _, _) ⇒ false
-            case _                                      ⇒ true
-        }).get
+        return pcs.exists { pc =>
+            caller.body.get.instructions(pc) match {
+                case INVOKEVIRTUAL(ObjectType.Object, _, _) ⇒ false
+                case _                                      ⇒ true
+            }
+        }
     }
 
     /**
@@ -377,6 +383,16 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
      */
     override def doAnalyze(project: Project[URL], parameters: Seq[String], isInterrupted: () ⇒ Boolean) : CapabilityAnaylsisResult = {
 
+        val methodsWithCapabilities: Iterable[(Method, Set[Capability])] = computeCapabilities(project)
+        
+        val capFilter = _PARAM_MAP.collect{ case (key, value) if parameters.contains(key) => value }
+        val listMethods = capFilter.nonEmpty || parameters.contains("-lm")
+        if(listMethods) printMethods(methodsWithCapabilities.toSet, capFilter.toSet, project)
+        
+        CapabilityReport(methodsWithCapabilities.foldLeft(Set.empty[Capability])((res, cur) ⇒ res.++(cur._2)))
+    }
+
+    def computeCapabilities(project: Project[URL]): Iterable[(Method, Set[Capability])] = {
         val capMap = HashMap.empty[Method, Set[Capability]]
 
         val nativeMethods = getNativeMethods(project)
@@ -385,14 +401,16 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
 
         val callGraph = buildCallGraph(project)
 
+        println("Call edges " + callGraph.callEdgesCount)
+
         val transitiveHull = calulateTransitiveHull(nativeMethods, capMap, callGraph, project)
-        
+
+        println("tHull " + transitiveHull.size)
+
         val methodsWithCapabilities = getReportTuples(transitiveHull, capMap, project)
-        
-        val capFilter = _PARAM_MAP.collect{ case (key, value) if parameters.contains(key) => value }
-        val listMethods = capFilter.nonEmpty || parameters.contains("-lm")
-        if(listMethods) printMethods(methodsWithCapabilities.toSet, capFilter.toSet, project)
-        
-        CapabilityReport(methodsWithCapabilities.foldLeft(Set.empty[Capability])((res, cur) ⇒ res.++(cur._2)))
+
+        println("mCaps " + methodsWithCapabilities.size)
+
+        methodsWithCapabilities
     }
 }

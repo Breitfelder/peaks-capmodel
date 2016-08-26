@@ -36,11 +36,11 @@ sealed trait StringInformation { def message: String }
 
 case class CapabilityReport(val capabilitySet: Set[Capability])
         extends CapabilityAnaylsisResult{
-    override def consoleReport = s"\n\nCapabilities: ${capabilitySet.map { x ⇒ x.shortForm() }.mkString("\n\n[", ", ", "]")}"
+    override def toConsoleString = s"\n\nCapabilities: ${capabilitySet.map { x ⇒ x.shortForm() }.mkString("\n\n[", ", ", "]")}"
 }
 
 case class StatisticalReport(override val message: String)
         extends CapabilityAnaylsisResult
             with StringInformation {
-    override def consoleReport = message
+    override def toConsoleString = message
 }
