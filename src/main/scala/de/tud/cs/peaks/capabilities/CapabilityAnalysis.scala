@@ -54,22 +54,22 @@ import de.tud.cs.peaks.opalreports.CapabilityAnaylsisResult
 import org.opalj.br.analyses.ReportableAnalysisResult
 import org.opalj.log.GlobalLogContext
 
-/**
- * This Scala trait represents the capability inference algorithm.
- *
- * @author Michael Reif, Ben Hermann
- *
- */
+import scala.collection.mutable
+
+/** This Scala trait represents the capability inference algorithm.
+  *
+  * @author Michael Reif, Ben Hermann
+  *
+  */
 
 trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, CapabilityAnaylsisResult] {
 
     val analysis = this
 
-    /**
-     * List with allowed analysis parameters.
-     *
-     * @note Subclasses should check whether they want to support all of them, if not, the field should be overwritten.
-     */
+    /** List with allowed analysis parameters.
+      *
+      * @note Subclasses should check whether they want to support all of them, if not, the field should be overwritten.
+      */
     val _ALLOWED_PARAMS = Seq("-lm", "-CL", "-CB", "-DB", "-FS", "-GU", "-IN", "-OS", "-NT", "-PR", "-RF", "-SC", "-SD", "-SY", "-UN")
 
     val _PARAM_MAP = Map(
@@ -88,70 +88,65 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
         "-SY" -> Capability.System,
         "-UN" -> Capability.Unsafe)
 
-    /**
-      * @see [AnalysisExecuter#printUsage]
+    /** @see [AnalysisExecuter#printUsage]
       */
     def printUsage = super.printUsage(GlobalLogContext)
 
-    /**
-     * @see [AnalysisExecuter#analysisSpecificParametersDescription]
-     */
+    /** @see [AnalysisExecuter#analysisSpecificParametersDescription]
+      */
     override def analysisSpecificParametersDescription: String = {
         val lineSep = System.lineSeparator()
-        s"[ -lm ] - All found methods with capabilities gets listed.$lineSep"+
-            s"[ -CL ] - Print all methods with the ${Capability.ClassLoading.shortForm()} capability.$lineSep"+
-            s"[ -CB ] - Print all methods with the ${Capability.Clipboard.shortForm()} capability.$lineSep"+
-            s"[ -DB ] - Print all methods with the ${Capability.Debug.shortForm()} capability.$lineSep"+
-            s"[ -FS ] - Print all methods with the ${Capability.Filesystem.shortForm()} capability.$lineSep"+
-            s"[ -GU ] - Print all methods with the ${Capability.GUI.shortForm()} capability.$lineSep"+
-            s"[ -IN ] - Print all methods with the ${Capability.Input.shortForm()} capability.$lineSep"+
-            s"[ -OS ] - Print all methods with the ${Capability.Os.shortForm()} capability.$lineSep"+
-            s"[ -NT ] - Print all methods with the ${Capability.Network.shortForm()} capability.$lineSep"+
-            s"[ -PR ] - Print all methods with the ${Capability.Print.shortForm()} capability.$lineSep"+
-            s"[ -RF ] - Print all methods with the ${Capability.Reflection.shortForm()} capability.$lineSep"+
-            s"[ -SC ] - Print all methods with the ${Capability.Security.shortForm()} capability.$lineSep"+
-            s"[ -SD ] - Print all methods with the ${Capability.Sound.shortForm()} capability.$lineSep"+
-            s"[ -SY ] - Print all methods with the ${Capability.System.shortForm()} capability.$lineSep"+
+        s"[ -lm ] - All found methods with capabilities gets listed.$lineSep" +
+            s"[ -CL ] - Print all methods with the ${Capability.ClassLoading.shortForm()} capability.$lineSep" +
+            s"[ -CB ] - Print all methods with the ${Capability.Clipboard.shortForm()} capability.$lineSep" +
+            s"[ -DB ] - Print all methods with the ${Capability.Debug.shortForm()} capability.$lineSep" +
+            s"[ -FS ] - Print all methods with the ${Capability.Filesystem.shortForm()} capability.$lineSep" +
+            s"[ -GU ] - Print all methods with the ${Capability.GUI.shortForm()} capability.$lineSep" +
+            s"[ -IN ] - Print all methods with the ${Capability.Input.shortForm()} capability.$lineSep" +
+            s"[ -OS ] - Print all methods with the ${Capability.Os.shortForm()} capability.$lineSep" +
+            s"[ -NT ] - Print all methods with the ${Capability.Network.shortForm()} capability.$lineSep" +
+            s"[ -PR ] - Print all methods with the ${Capability.Print.shortForm()} capability.$lineSep" +
+            s"[ -RF ] - Print all methods with the ${Capability.Reflection.shortForm()} capability.$lineSep" +
+            s"[ -SC ] - Print all methods with the ${Capability.Security.shortForm()} capability.$lineSep" +
+            s"[ -SD ] - Print all methods with the ${Capability.Sound.shortForm()} capability.$lineSep" +
+            s"[ -SY ] - Print all methods with the ${Capability.System.shortForm()} capability.$lineSep" +
             s"[ -UN ] - Print all methods with the ${Capability.Unsafe.shortForm()} capability.$lineSep"
     }
 
-    /**
-     * @see [AnalysisExecuter#checkAnalysisSpecificParameters]
-     */
+    /** @see [AnalysisExecuter#checkAnalysisSpecificParameters]
+      */
     override def checkAnalysisSpecificParameters(parameters: Seq[String]): Traversable[String] = {
         parameters.filter { param => !_ALLOWED_PARAMS.contains(param) }
     }
 
-    /**
-     * This method represents the the sub-type filter for interfaces and abstract classes which
-     * would propagate dozens of capabilities all over the JRE into the given library.
-     * InputStream and OutputStream are handled separately due to complicated sub type
-     * relations.
-     *
-     * @param caller The caller method of the corresponding call.
-     * @param pcs The set of program counters of the of the instructions in the method body of the caller method.
-     * @param project Project of the current context.
-     */
+    /** This method represents the the sub-type filter for interfaces and abstract classes which
+      * would propagate dozens of capabilities all over the JRE into the given library.
+      * InputStream and OutputStream are handled separately due to complicated sub type
+      * relations.
+      *
+      * @param caller The caller method of the corresponding call.
+      * @param pcs The set of program counters of the of the instructions in the method body of the caller method.
+      * @param project Project of the current context.
+      */
     def isInterfaceOrAbstractType(caller: Method, pcs: UShortSet, project: Project[URL]): Boolean = {
         return pcs.exists { pc =>
-                caller.body.get.instructions(pc) match {
-                    case INVOKEINTERFACE(_, _, _) ⇒ true
-                    case INVOKEVIRTUAL(ObjectType("java/io/InputStream"), _, _) ⇒ true
-                    case INVOKEVIRTUAL(ObjectType("java/io/OutputStream"), _, _) ⇒ true
-                    case INVOKEVIRTUAL(rt, _, _) ⇒ checkAbstractType(caller, rt, project)
-                    case _ ⇒ caller.body.isEmpty || isUnimplementedMethod(caller, project)
-                }
+            caller.body.get.instructions(pc) match {
+                case INVOKEINTERFACE(_, _, _) ⇒ true
+                case INVOKEVIRTUAL(ObjectType("java/io/InputStream"), _, _) ⇒ true
+                case INVOKEVIRTUAL(ObjectType("java/io/OutputStream"), _, _) ⇒ true
+                case INVOKEVIRTUAL(rt, _, _) ⇒ checkAbstractType(caller, rt, project)
+                case _ ⇒ caller.body.isEmpty || isUnimplementedMethod(caller, project)
             }
+        }
     }
 
-    /**
-     * This method checks whether the given reference type is abstract. If the caller
-     * is declared in an abstract method, it have to get checked whether it is an unimplemented method.
-     *
-     * @param caller The caller method of the corresponding call.
-     * @param rt The OPAL ReferenceType of the call receiver.
-     * @param project The corresponding OPAL project.
-     */
+    /** This method checks whether the given reference type is abstract. If the caller
+      * is declared in an abstract method, it have to get checked whether it is an unimplemented method.
+      *
+      * @param caller The caller method of the corresponding call.
+      * @param rt The OPAL ReferenceType of the call receiver.
+      * @param project The corresponding OPAL project.
+      */
     def checkAbstractType(caller: Method, rt: ReferenceType, project: Project[URL]): Boolean = {
         if (rt.isObjectType) {
             val classFile = project.classFile(rt.asObjectType)
@@ -161,12 +156,11 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
         return false
     }
 
-    /**
-     * Returns true, if the method has no body. False, otherwise.
-     *
-     * @param caller The caller method of the corresponding call.
-     * @param project Project of the current context.
-     */
+    /** Returns true, if the method has no body. False, otherwise.
+      *
+      * @param caller The caller method of the corresponding call.
+      * @param project Project of the current context.
+      */
     def isUnimplementedMethod(caller: Method, project: Project[URL]): Boolean = {
         var relevantClasses = project.classFile(caller).interfaceTypes
         var objectType = project.classFile(caller).superclassType
@@ -187,81 +181,73 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
         return false;
     }
 
-    /**
-     * Return true if the given method is called on java/lang/Object.
-     *
-     * @param caller The calling Method of the call.
-     * @param pcs The set of program counters of the of the instructions in the method body of the caller method.
-     */
+    /** Return true if the given method is called on java/lang/Object.
+      *
+      * @param caller The calling Method of the call.
+      * @param pcs The set of program counters of the of the instructions in the method body of the caller method.
+      */
     def nonObjectCall(caller: Method, pcs: UShortSet): Boolean = {
         return pcs.exists { pc =>
             caller.body.get.instructions(pc) match {
                 case INVOKEVIRTUAL(ObjectType.Object, _, _) ⇒ false
-                case _                                      ⇒ true
+                case _ ⇒ true
             }
         }
     }
 
-    /**
-     * Filters methods which are either calls on java/lang/Object, an interface type or an abstract class.
-     * The filter only applies for callees within the rt.jar
-     *
-     * @param callee The target method of the call.
-     * @param caller The caller method of the call.
-     * @param pcs The set of program counters of the of the instructions in the method body of the caller method.
-     * @param project The corresponding OPAL project.
-     */
+    /** Filters methods which are either calls on java/lang/Object, an interface type or an abstract class.
+      * The filter only applies for callees within the rt.jar
+      *
+      * @param callee The target method of the call.
+      * @param caller The caller method of the call.
+      * @param pcs The set of program counters of the of the instructions in the method body of the caller method.
+      * @param project The corresponding OPAL project.
+      */
     def filterMethod(callee: Method, caller: Method, pcs: UShortSet, project: Project[URL]): Boolean = {
-
         val calleeCF = project.classFile(callee)
         val callerCF = project.classFile(caller)
         val isCallOnObject = nonObjectCall(caller, pcs)
+        var result = true
         if (isJclSourceByClass(calleeCF, project)) {
-            var result = true
             if (isInterfaceOrAbstractType(caller, pcs, project))
                 result = calleeCF.fqn.splitAt(calleeCF.fqn.lastIndexOf("/"))._1.equals(callerCF.fqn.splitAt(callerCF.fqn.lastIndexOf("/"))._1)
-            return result && isCallOnObject
+            result && isCallOnObject
         } else
-            return true;
-
+            result
     }
 
-    /**
-     * Return true, if the given method is declared within the 'rt.jar'.
-     *
-     * @param method The method under test if it is a method of the JCL.
-     * @param project The corresponding OPAL project.
-     */
+    /** Return true, if the given method is declared within the 'rt.jar'.
+      *
+      * @param method The method under test if it is a method of the JCL.
+      * @param project The corresponding OPAL project.
+      */
     def isJclSource(method: Method, project: Project[URL]): Boolean = {
         isJclSourceByClass(project.classFile(method), project)
     }
 
-    /**
-     * Return true, if the given class file is declared within the 'rt.jar'.
-     *
-     * @param classFile The class file which should be checked whether it's defined inside the JCL.
-     * @param project The corresponding OPAL project.
-     */
+    /** Return true, if the given class file is declared within the 'rt.jar'.
+      *
+      * @param classFile The class file which should be checked whether it's defined inside the JCL.
+      * @param project The corresponding OPAL project.
+      */
     def isJclSourceByClass(classFile: ClassFile, project: Project[URL]): Boolean = {
         project.source(ObjectType(classFile.fqn)).get.toString().contains("resources/jre_7.0_60/rt.jar")
     }
 
-    /**
-     * Returns the CallGraph of the given project.
-     *
-     * @param project This project is the base of the call graph construction.
-     */
+    /** Returns the CallGraph of the given project.
+      *
+      * @param project This project is the base of the call graph construction.
+      */
     def buildCallGraph(project: Project[URL]): CallGraph = {
         CallGraphFactory.create(project,
             () ⇒ CallGraphFactory.defaultEntryPointsForLibraries(project),
             new ExtVTACallGraphAlgorithmConfiguration(project)).callGraph
     }
 
-    /**
-     * Returns all native methods that can be found in the project.
-     *
-     * @param The OPAL project of the library under analysis.
-     */
+    /** Returns all native methods that can be found in the project.
+      *
+      * @param The OPAL project of the library under analysis.
+      */
     def getNativeMethods(project: Project[URL]): Iterable[Method] = {
         return for {
             cf ← project.allClassFiles if isJclSourceByClass(cf, project)
@@ -269,131 +255,121 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
         } yield m
     }
 
-    /**
-     * This methods seeds the given map with the identity capabilities.
-     *
-     * @param nativeMethods Iterable of OPAL methods which contains the list of native methods.
-     * @param capMap The map that have to be seeded.
-     * @param project The corresponding OPAL project.
-     */
-    def seedIdentityCaps(nativeMethods: Iterable[Method], capMap: HashMap[Method, Set[Capability]], project: Project[URL]): Unit = {
-        for { n ← nativeMethods } {
+    /** This methods seeds the given map with the identity capabilities.
+      *
+      * @param nativeMethods Iterable of OPAL methods which contains the list of native methods.
+      * @param capMap The map that have to be seeded.
+      * @param project The corresponding OPAL project.
+      */
+    def seedIdentityCaps(nativeMethods: Iterable[Method], capMap: HashMap[Method, HashSet[Capability]], project: Project[URL]): Unit = {
+        nativeMethods.foreach{ n =>
             capMap.put(n, CapabilityMapping.getCapability(n, project))
         }
     }
 
-    /**
-     * Returns a set with all transitive methods included. The capabilities get propageted as side effect.
-     *
-     * @param nativeMethods Iterable of the native methods.
-     * @param capMap The seeded capability map.
-     * @param callGraph The call graph of the project.
-     * @param project Project of the current context.
-     */
+    /** Returns a set with all transitive methods included. The capabilities get propageted as side effect.
+      *
+      * @param nativeMethods Iterable of the native methods.
+      * @param capMap The seeded capability map.
+      * @param callGraph The call graph of the project.
+      * @param project Project of the current context.
+      */
     def calulateTransitiveHull(nativeMethods: Iterable[Method],
-                               capMap: HashMap[Method, Set[Capability]],
-                               callGraph: CallGraph,
-                               project: Project[URL]): scala.collection.mutable.Set[Method] = {
+        capMap: HashMap[Method, HashSet[Capability]],
+        callGraph: CallGraph,
+        project: Project[URL]): scala.collection.mutable.Set[Method] = {
         val result = new HashSet[Method]()
         result ++= nativeMethods.toList
 
         val workQueue = new Queue[Method]()
-        workQueue ++= nativeMethods.toList
+        workQueue ++= nativeMethods.toList.sortBy( m => m.toJava(project.classFile(m)))
 
-        Iterator.iterate(workQueue) { qi ⇒
-            val currentMethod = qi.dequeue
+        while (workQueue.nonEmpty) {
+            val currentMethod = workQueue.dequeue
 
             val calledBy = callGraph.calledBy(currentMethod)
-            if (!calledBy.isEmpty) {
+            if (calledBy.nonEmpty) {
                 val callers = calledBy.filter { case (method, pcs) ⇒ filterMethod(currentMethod, method, pcs, project) }
-                for { m ← callers.keySet } {
-                    var capSet = capMap.getOrElse(m, Set.empty[Capability])
+
+                for { caller ← callers.keySet } {
+                    var capSet = capMap.getOrElse(caller, HashSet.empty[Capability])
                     capSet = capSet ++ capMap.getOrElse(currentMethod, HashSet.empty[Capability])
-                    capMap.put(m, capSet)
+                    capMap.put(caller, capSet)
                 }
 
                 val newCallers = callers.keySet.filterNot { result.contains(_) }
                 result ++= newCallers
-                workQueue ++= newCallers
+                workQueue ++= newCallers.toList.sortBy( m => m.toJava(project.classFile(m)))
             }
+        }
 
-            workQueue
-        }.takeWhile(!_.isEmpty).foreach(identity)
         result
     }
 
-    /**
-     * Describes the filter which is used to create the correct report. This analysis filters every JCL method.
-     */
+    /** Describes the filter which is used to create the correct report. This analysis filters every JCL method.
+      */
     def filterResults = isJclSource _
 
-    /**
-     * Returns every  - method, capability set - tuple that is relevant for the report.
-     *
-     * @param transitiveHull All methods that can transitively reach native calls.
-     * @param capMap      The map that contains the capabilities.
-     * @param listMethods True, and every library method with capabilities is printed with the according capability set.
-     *                    False, nothing happens.
-     * @param project The corresponding OPAL project.
-     */
+    /** Returns every  - method, capability set - tuple that is relevant for the report.
+      *
+      * @param transitiveHull All methods that can transitively reach native calls.
+      * @param capMap      The map that contains the capabilities.
+      * @param listMethods True, and every library method with capabilities is printed with the according capability set.
+      *                   False, nothing happens.
+      * @param project The corresponding OPAL project.
+      */
     def getReportTuples(transitiveHull: scala.collection.mutable.Set[Method],
-                        capMap: HashMap[Method, Set[Capability]],
-                        project: Project[URL]): Iterable[(Method, Set[Capability])] = {
-        return for {
+        capMap: HashMap[Method, HashSet[Capability]],
+        project: Project[URL]): mutable.Set[(Method, mutable.HashSet[Capability])] = {
+        for {
             method ← transitiveHull.filterNot { filterResults(_, project) }
             capSet ← capMap.get(method) if isValidCapset(capSet)
         } yield (method, capSet)
     }
-    
-    /**
-     * Returns True, if the given capSet is not empty and does not only contain the 'native' capability.
-     * 
-     * @param capSet A set of capabilities.
-     */
-    protected def isValidCapset(capSet: Set[Capability]) : Boolean = {
-            return !(capSet.isEmpty 
-                    || (capSet.size == 1 && capSet.contains(Capability.Native)))
+
+    /** Returns True, if the given capSet is not empty and does not only contain the 'native' capability.
+      *
+      * @param capSet A set of capabilities.
+      */
+    protected def isValidCapset(capSet: HashSet[Capability]): Boolean = {
+        capSet.nonEmpty && !(capSet.size == 1 && capSet.contains(Capability.Native))
     }
-    
-    /**
-     * Prints all methods or if the param 'filterSet' is nonEmpty, it prints only methods that belong to
-     * one Capability in the specified set.
-     * 
-     * @param methodsWithCapabilities Set of tuples of a OPAL Method 
-     *        and a Set of Capabilities which were identified by the capability inference algorithm.
-     * @param filterSet A Set of Capabilities which is used to filter interesting methods.
-     */
-    protected def printMethods(methodsWithCapabilities: Set[(Method, Set[Capability])], filterSet: Set[Capability], project: Project[URL]) : Unit = {
-        def formatMethod(method: Method, capSet: Set[Capability], project: Project[URL]) : String 
-            = project.classFile(method).fqn + "  -  " + method.toString()+" => "+capSet.map(x ⇒ x.shortForm()).mkString("[", ", ", "]")
-        
-        for((method, capSet) <- methodsWithCapabilities)
-            if(filterSet.nonEmpty){
-                if(capSet.intersect(filterSet).size > 0)
+
+    /** Prints all methods or if the param 'filterSet' is nonEmpty, it prints only methods that belong to
+      * one Capability in the specified set.
+      *
+      * @param methodsWithCapabilities Set of tuples of a OPAL Method
+      *       and a Set of Capabilities which were identified by the capability inference algorithm.
+      * @param filterSet A Set of Capabilities which is used to filter interesting methods.
+      */
+    protected def printMethods(methodsWithCapabilities: Set[(Method, HashSet[Capability])], filterSet: Set[Capability], project: Project[URL]): Unit = {
+        def formatMethod(method: Method, capSet: HashSet[Capability], project: Project[URL]): String = project.classFile(method).fqn + "  -  " + method.toString() + " => " + capSet.map(x ⇒ x.shortForm()).mkString("[", ", ", "]")
+
+        for ((method, capSet) <- methodsWithCapabilities)
+            if (filterSet.nonEmpty) {
+                if (capSet.intersect(filterSet).size > 0)
                     println(formatMethod(method, capSet, project))
-            }
-            else 
+            } else
                 println(formatMethod(method, capSet, project))
     }
-    
-    /**
-     * This method triggers the capability inference analysis.
-     *
-     * @see [OneStepAnalysis#doAnalize]
-     */
-    override def doAnalyze(project: Project[URL], parameters: Seq[String], isInterrupted: () ⇒ Boolean) : CapabilityAnaylsisResult = {
 
-        val methodsWithCapabilities: Iterable[(Method, Set[Capability])] = computeCapabilities(project)
-        
-        val capFilter = _PARAM_MAP.collect{ case (key, value) if parameters.contains(key) => value }
+    /** This method triggers the capability inference analysis.
+      *
+      * @see [OneStepAnalysis#doAnalize]
+      */
+    override def doAnalyze(project: Project[URL], parameters: Seq[String], isInterrupted: () ⇒ Boolean): CapabilityAnaylsisResult = {
+
+        val methodsWithCapabilities: Iterable[(Method, HashSet[Capability])] = computeCapabilities(project)
+
+        val capFilter = _PARAM_MAP.collect { case (key, value) if parameters.contains(key) => value }
         val listMethods = capFilter.nonEmpty || parameters.contains("-lm")
-        if(listMethods) printMethods(methodsWithCapabilities.toSet, capFilter.toSet, project)
-        
+        if (listMethods) printMethods(methodsWithCapabilities.toSet, capFilter.toSet, project)
+
         CapabilityReport(methodsWithCapabilities.foldLeft(Set.empty[Capability])((res, cur) ⇒ res.++(cur._2)))
     }
 
-    def computeCapabilities(project: Project[URL]): Iterable[(Method, Set[Capability])] = {
-        val capMap = HashMap.empty[Method, Set[Capability]]
+    def computeCapabilities(project: Project[URL]): Iterable[(Method, HashSet[Capability])] = {
+        val capMap = HashMap.empty[Method, HashSet[Capability]]
 
         val nativeMethods = getNativeMethods(project)
 
@@ -410,6 +386,9 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
         val methodsWithCapabilities = getReportTuples(transitiveHull, capMap, project)
 
         println("mCaps " + methodsWithCapabilities.size)
+
+        val overAllCaps = capMap.foldLeft(0)((acc, pair) => acc + pair._2.size)
+        println(s"overallCaps $overAllCaps")
 
         methodsWithCapabilities
     }

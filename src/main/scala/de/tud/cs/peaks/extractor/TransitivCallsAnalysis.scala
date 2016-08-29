@@ -30,20 +30,11 @@ package de.tud.cs.peaks.extractor
 
 import java.net.URL
 
-import scala.collection.mutable.HashMap
-
-import org.opalj.ai.analyses.cg.CallGraph
-import org.opalj.ai.analyses.cg.DefaultVTACallGraphAlgorithmConfiguration
-import org.opalj.ai.analyses.cg.ExtVTACallGraphAlgorithmConfiguration
+import scala.collection.mutable.{HashMap, HashSet}
 import org.opalj.br.Method
-import org.opalj.br.analyses.AnalysisExecutor
-import org.opalj.br.analyses.OneStepAnalysis
 import org.opalj.br.analyses.Project
-import org.opalj.collection.UShortSet
-
 import de.tud.cs.peaks.capabilities.Capability
 import de.tud.cs.peaks.capabilities.CapabilityAnalysis
-import de.tud.cs.peaks.opalreports.StatisticalReport
 import de.tud.cs.peaks.opalreports.StatisticalReport
 
 /**
@@ -69,7 +60,7 @@ object TransitivCallsAnalysis extends CapabilityAnalysis {
     
     override def doAnalyze(project: Project[URL], parameters: Seq[String], isInterrupted: () ⇒ Boolean) = {
 
-        val capMap = HashMap.empty[Method, Set[Capability]]
+        val capMap = HashMap.empty[Method, HashSet[Capability]]
 
         val nativeMethods = getNativeMethods(project)
 

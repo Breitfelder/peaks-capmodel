@@ -30,11 +30,10 @@ package de.tud.cs.peaks.extractor
 
 import scala.collection.mutable.HashMap
 import org.opalj.br.Method
-import org.opalj.br.ClassFile
 import scala.io.Source
+import scala.collection.mutable.HashSet
 import java.io.IOException
 import java.io.FileNotFoundException
-import scala.collection.immutable.HashSet
 import org.opalj.br.analyses.Project
 import java.net.URL
 import de.tud.cs.peaks.capabilities.Capability
@@ -49,7 +48,7 @@ object CapabilityMapping {
 
     //header = package, class, method name, return type, parameters, capabilities
     val _nativeCallCSV = "resources/capabilities/NativeMethodsRT.csv"
-    var capMap = HashMap.empty[TMethod, Set[Capability]]
+    var capMap = HashMap.empty[TMethod, HashSet[Capability]]
     val stringToCapMap = getStringToCapMap()
 
     /**
@@ -60,7 +59,7 @@ object CapabilityMapping {
      * @param method Should be native method of the rt.jar.
      * @param theProject the Project of the used analysis
      */
-    def getCapability(method: Method, theProject: Project[URL]): Set[Capability] = {
+    def getCapability(method: Method, theProject: Project[URL]): HashSet[Capability] = {
         if (capMap.isEmpty)
             init()
 
@@ -110,7 +109,7 @@ object CapabilityMapping {
      *
      * @param line Line from the 'NativeMethodsRT.csv'.
      */
-    def parseCsvRow(line: String): (TMethod, Set[Capability]) = {
+    def parseCsvRow(line: String): (TMethod, HashSet[Capability]) = {
         val entries = line.replaceAll(" ", "").split(";")
         val packageName = entries(0).replaceAll("[.]", "/")
         val className = entries(1)
@@ -131,7 +130,7 @@ object CapabilityMapping {
      *
      * @param capabilities List of comma separated capabilities.
      */
-    def parseCapabilitySet(capabilities: String): Set[Capability] = {
+    def parseCapabilitySet(capabilities: String): HashSet[Capability] = {
         val result = HashSet.empty[Capability]
         if (capabilities.length() == 0)
             return result

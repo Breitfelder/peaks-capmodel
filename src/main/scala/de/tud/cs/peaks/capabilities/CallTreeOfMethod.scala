@@ -79,7 +79,7 @@ object CallTreeOfMethod extends CapabilityAnalysis{
         
         override def doAnalyze(project: Project[URL], parameters: Seq[String], isInterrupted: () ⇒ Boolean) = {
             
-            val capMap = HashMap.empty[Method, Set[Capability]]
+            val capMap = HashMap.empty[Method, HashSet[Capability]]
             
             /*
              * Alpha data structure to explore call chains.
