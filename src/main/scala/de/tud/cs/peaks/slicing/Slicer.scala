@@ -84,7 +84,7 @@ trait Slicer extends AnalysisExecutor with OneStepAnalysis[URL, SlicingResult] {
   }
 
 
-  def slice(project: Project[URL], caps : Set[Capability]) : Seq[JarFile] = {
+  def slice(project: Project[URL], caps : Set[Capability]) : Set[JarFile] = {
     // 1. determine slicing information
 
     println("Desired capability footprint: " +  caps.map { x ⇒ x.shortForm() }.mkString("[", ", ", "]"))
