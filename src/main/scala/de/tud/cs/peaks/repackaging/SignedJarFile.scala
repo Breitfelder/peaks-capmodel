@@ -15,11 +15,12 @@ import com.sun.xml.internal.messaging.saaj.util.ByteOutputStream
 import java.security.Signature
 import java.security.PrivateKey
 import java.util.Arrays
+import de.tud.cs.peaks.slicing.JarFile
 
 class SignedJarFile(val out: OutputStream,
-    val keyStore: KeyStore,
-    val keyName: String,
-    val keyPass: String) {
+                    val keyStore: KeyStore,
+                    val keyName: String,
+                    val keyPass: String) extends JarFile {
 
   private val zos = new ZipOutputStream(out)
   private val hashAlgorithm = "SHA-256"
@@ -92,13 +93,13 @@ class SignedJarFile(val out: OutputStream,
     val os = new ByteOutputStream
     m.write(os)
     val emptyLength = os.getBytes.length
-    
+
     m.getEntries.put(k, a)
-    
+
     m.write(os)
     var bytes = os.getBytes
-    bytes = Arrays.copyOfRange(bytes, emptyLength, bytes.length) 
-    
+    bytes = Arrays.copyOfRange(bytes, emptyLength, bytes.length)
+
     hashFunction.reset()
     return Base64.getEncoder.encodeToString(hashFunction.digest(bytes))
   }
