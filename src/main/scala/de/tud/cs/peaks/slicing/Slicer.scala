@@ -115,10 +115,14 @@ trait Slicer extends AnalysisExecutor with OneStepAnalysis[URL, SlicingResult] {
 
                 val filteredMethods = cf.methods.filter { m ⇒
                   implicit val cp = cf.constant_pool
-                  val matches = currentClassSlice._2.exists(sm => sm.name == cp(m.name_index))
+                  val matches = currentClassSlice._2.exists(sm => {
+                    sm.name == cp(m.name_index).toString
+                  })
                   matches
                 }
+
                 val filteredCF = cf.copy(methods = filteredMethods)
+
                 val filteredCFBytes = Assembler.apply(filteredCF)
 
                 val fullPath = project.source(ObjectType(currentClassSlice._1.fqn)).get.toString
