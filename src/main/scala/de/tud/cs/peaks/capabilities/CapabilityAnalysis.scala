@@ -30,31 +30,17 @@ package de.tud.cs.peaks.capabilities
 
 import java.net.URL
 
-import scala.annotation.migration
-import scala.collection.mutable.HashMap
-import scala.collection.mutable.HashSet
-import scala.collection.mutable.Queue
-import org.opalj.ai.analyses.cg.CallGraph
-import org.opalj.ai.analyses.cg.CallGraphFactory
-import org.opalj.ai.analyses.cg.ExtVTACallGraphAlgorithmConfiguration
-import org.opalj.br.ClassFile
-import org.opalj.br.Method
-import org.opalj.br.ObjectType
-import org.opalj.br.ReferenceType
-import org.opalj.br.analyses.AnalysisExecutor
-import org.opalj.br.analyses.OneStepAnalysis
-import org.opalj.br.analyses.Project
-import org.opalj.br.instructions.INVOKEINTERFACE
-import org.opalj.br.instructions.INVOKEVIRTUAL
-import org.opalj.collection.UShortSet
-import de.tud.cs.peaks.opalreports.CapabilityAnaylsisResult
 import de.tud.cs.peaks.extractor.CapabilityMapping
-import de.tud.cs.peaks.opalreports.CapabilityReport
-import de.tud.cs.peaks.opalreports.CapabilityAnaylsisResult
-import org.opalj.br.analyses.ReportableAnalysisResult
+import de.tud.cs.peaks.opalreports.{CapabilityAnaylsisResult, CapabilityReport}
+import org.opalj.ai.analyses.cg.{CallGraph, CallGraphFactory, ExtVTACallGraphAlgorithmConfiguration}
+import org.opalj.br.{ClassFile, Method, ObjectType, ReferenceType}
+import org.opalj.br.analyses.{AnalysisExecutor, OneStepAnalysis, Project}
+import org.opalj.br.instructions.{INVOKEINTERFACE, INVOKEVIRTUAL}
+import org.opalj.collection.UShortSet
 import org.opalj.log.GlobalLogContext
 
 import scala.collection.mutable
+import scala.collection.mutable.{HashMap, HashSet, Queue}
 
 /** This Scala trait represents the capability inference algorithm.
   *
