@@ -376,19 +376,9 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
         seedIdentityCaps(nativeMethods, capMap, project)
 
         val callGraph = buildCallGraph(project)
-
-        println("Call edges " + callGraph.callEdgesCount)
-
         val transitiveHull = calulateTransitiveHull(nativeMethods, capMap, callGraph, project)
-
-        println("tHull " + transitiveHull.size)
-
         val methodsWithCapabilities = getReportTuples(transitiveHull, capMap, project)
-
-        println("mCaps " + methodsWithCapabilities.size)
-
         val overAllCaps = capMap.foldLeft(0)((acc, pair) => acc + pair._2.size)
-        println(s"overallCaps $overAllCaps")
 
         methodsWithCapabilities
     }
