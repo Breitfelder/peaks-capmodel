@@ -5,4 +5,5 @@ package de.tud.cs.peaks.slicing
   */
 trait JarFile {
   def addFile(filename: String, contents: Array[Byte])
+  def close()
 }

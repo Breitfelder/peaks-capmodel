@@ -10,6 +10,8 @@ import org.opalj.br.analyses.{Analysis, AnalysisExecutor, OneStepAnalysis, Proje
 import org.opalj.log.GlobalLogContext
 import java.io.File
 
+import de.tud.cs.peaks.repackaging.SimpleJarFile
+
 
 trait Slicer extends AnalysisExecutor with OneStepAnalysis[URL, SlicingResult] {
 
@@ -79,80 +81,57 @@ trait Slicer extends AnalysisExecutor with OneStepAnalysis[URL, SlicingResult] {
 
     var slices = slice(project, enhancedCapFilter)
 
-    // TODO: Write some slices
     CapSlicingResult("done")
   }
 
 
   def slice(project: Project[URL], caps : Set[Capability]) : Set[JarFile] = {
-    // 1. determine slicing information
+    val slice: Map[ClassFile, Set[Method]] = computeSlice(project, caps)
 
-    println("Desired capability footprint: " +  caps.map { x ⇒ x.shortForm() }.mkString("[", ", ", "]"))
-
-    // 1.1 Determine current footprint
-
-    val methodsWithCapabilities = LibraryCapabilityAnalysis.computeCapabilities(project)
-    val usedCaps = methodsWithCapabilities.foldLeft(Set.empty[Capability])((res, cur) ⇒ res.++(cur._2))
-    println("Currently used capabilities: (" + methodsWithCapabilities.size + " method(s)) " +  usedCaps.map { x ⇒ x.shortForm() }.mkString("[", ", ", "]"))
-
-    // 1.2 Filter undesired methods
-
-    val filtered = methodsWithCapabilities.filter(mcaps => (mcaps._2 -- caps).isEmpty )
-    val filteredCaps = filtered.foldLeft(Set.empty[Capability])((res, cur) ⇒ res.++(cur._2))
-    println("Capabilities after slicing: (" + filtered.size + " method(s)) " +  filteredCaps.map { x ⇒ x.shortForm() }.mkString("[", ", ", "]"))
-
-    val removed = methodsWithCapabilities.filter(mcaps => (mcaps._2 -- caps).nonEmpty )
-    val removedCaps = removed.foldLeft(Set.empty[Capability])((res, cur) ⇒ res.++(cur._2))
-    println("Capabilities removed: (" + removed.size + " method(s)) " +  removedCaps.map { x ⇒ x.shortForm() }.mkString("[", ", ", "]"))
-
-    removed.foreach(m => println(m._1.toJava(project.classFile(m._1))))
-
-    val libraryMethods = project.methods().filter(m => !LibraryCapabilityAnalysis.isJclSource(m, project))
-
-    println("Complete library method count: " + libraryMethods.size)
-
-    val newSlice = libraryMethods.toSet -- removed.map(tuple => tuple._1).toSet
-    println("New slice method count: " + newSlice.size)
-
-    // determine source jars
-    val sliceClasses = newSlice.map(m => project.classFile(m))
-    val sliceSources = sliceClasses.map(c => project.source(ObjectType(c.fqn)).get.toString)
-    val sourceJars = sliceSources.map(source => source.substring("jar:file:".length, source.indexOf("!")))
-
-    // read in source jars in
-    val daClasses = sourceJars.map(source => (source, org.opalj.da.ClassFileReader.ClassFiles(new File(source)).map(_._1)))
-
-    val slice : Map[ClassFile, Set[Method]] = newSlice.groupBy(m => project.classFile(m))
-
-    val slicedJarFiles = daClasses.map(
-                          jarFileName => {
-                            val jarFile : JarFile = null
-                            val classFiles  =
-                              jarFileName._2.map(
-                                cf => {
-                                  if (slice.exists(e => e._1.fqn == cf.fqn.replace(".", "/"))) {
-                                    val currentClassSlice : (ClassFile, Set[Method]) = slice.collectFirst({ case (c, methodSet) if c.fqn == cf.fqn.replace(".", "/") => (c, methodSet) }).get
-
-                                    val filteredMethods = cf.methods.filter { m ⇒
-                                      implicit val cp = cf.constant_pool
-                                      val matches = currentClassSlice._2.exists(sm => sm.name == cp(m.name_index))
-                                      matches
-                                    }
-                                    val filteredCF = cf.copy(methods = filteredMethods)
-                                    val filteredCFBytes = Assembler.apply(filteredCF)
-
-                                    val fullPath = project.source(ObjectType(currentClassSlice._1.fqn)).get.toString
-                                    val path = fullPath.substring(fullPath.indexOf("!") + 1)
-                                    (path, filteredCFBytes)
-                                  }
-                                }).asInstanceOf[Seq[(String, Array[Byte])]]
-                            classFiles.foreach(e => jarFile.addFile(e._1, e._2))
-                            jarFile
-                          }
-                        )
+    val slicedJarFiles: Set[JarFile] = sliceToJars(project, slice)
 
     slicedJarFiles
   }
 
+  def computeSlice(project: Project[URL], caps : Set[Capability]) : Map[ClassFile, Set[Method]]
+
+  def sliceToJars(project: Project[URL], slicingInfo : Map[ClassFile, Set[Method]]): Set[JarFile] = {
+
+    val sourceJars = slicingInfo.keys.map(c => project.source(ObjectType(c.fqn)).get.toString)
+                                     .map(source => source.substring("jar:file:".length, source.indexOf("!")))
+
+    // read in source jars in
+    val daClasses = sourceJars.map(source => (source, org.opalj.da.ClassFileReader.ClassFiles(new File(source)).map(_._1)))
+
+    val slicedJarFiles = daClasses.map(
+      jarFileName => {
+        val newJarFilename = "/tmp/" + jarFileName._1.substring(jarFileName._1.lastIndexOf("/") + 1)
+        val jarFile: JarFile = new SimpleJarFile(newJarFilename)
+        val classFiles =
+          jarFileName._2.map(
+            cf => {
+              if (slicingInfo.exists(e => e._1.fqn == cf.fqn.replace(".", "/"))) {
+                val currentClassSlice: (ClassFile, Set[Method]) = slicingInfo.collectFirst({ case (c, methodSet) if c.fqn == cf.fqn.replace(".", "/") => (c, methodSet) }).get
+
+                val filteredMethods = cf.methods.filter { m ⇒
+                  implicit val cp = cf.constant_pool
+                  val matches = currentClassSlice._2.exists(sm => sm.name == cp(m.name_index))
+                  matches
+                }
+                val filteredCF = cf.copy(methods = filteredMethods)
+                val filteredCFBytes = Assembler.apply(filteredCF)
+
+                val fullPath = project.source(ObjectType(currentClassSlice._1.fqn)).get.toString
+                val path = fullPath.substring(fullPath.indexOf("!") + 1)
+                (path, filteredCFBytes)
+              }
+            }).asInstanceOf[Seq[(String, Array[Byte])]]
+        classFiles.foreach(e => jarFile.addFile(e._1, e._2))
+        jarFile.close()
+        jarFile
+      }
+    )
+    slicedJarFiles.toSet
+  }
 }
 
