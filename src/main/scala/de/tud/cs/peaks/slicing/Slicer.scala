@@ -11,6 +11,7 @@ import org.opalj.log.GlobalLogContext
 import java.io.File
 
 import de.tud.cs.peaks.repackaging.SimpleJarFile
+import org.opalj.ai.analyses.cg.{CallGraph, CallGraphFactory, ExtVTACallGraphAlgorithmConfiguration}
 
 
 trait Slicer extends AnalysisExecutor with OneStepAnalysis[URL, SlicingResult] {
@@ -22,7 +23,7 @@ trait Slicer extends AnalysisExecutor with OneStepAnalysis[URL, SlicingResult] {
     *
     * @note Subclasses should check whether they want to support all of them, if not, the field should be overwritten.
     */
-  val _ALLOWED_PARAMS = Seq("-slice", "-CL", "-CB", "-DB", "-FS", "-GU", "-IN", "-OS", "-NT", "-PR", "-RF", "-SC", "-SD", "-SY", "-UN")
+  val _ALLOWED_PARAMS = Seq("-appcp", "-slice", "-CL", "-CB", "-DB", "-FS", "-GU", "-IN", "-OS", "-NT", "-PR", "-RF", "-SC", "-SD", "-SY", "-UN")
 
   val _PARAM_MAP = Map(
     "-CL" -> Capability.ClassLoading,
@@ -70,30 +71,43 @@ trait Slicer extends AnalysisExecutor with OneStepAnalysis[URL, SlicingResult] {
     * @see [AnalysisExecuter#checkAnalysisSpecificParameters]
     */
   override def checkAnalysisSpecificParameters(parameters: Seq[String]): Traversable[String] = {
-    parameters.filter { param => !_ALLOWED_PARAMS.contains(param) }
+    parameters.filter { param => !_ALLOWED_PARAMS.contains(param.split("=")(0)) }
   }
 
 
   override def doAnalyze(project: Project[URL], parameters: Seq[String], isInterrupted: () => Boolean): SlicingResult = {
-
     val capFilter = _PARAM_MAP.collect{ case (key, value) if parameters.contains(key) => value }.toSet
     val enhancedCapFilter = capFilter + Capability.Native
 
-    var slices = slice(project, enhancedCapFilter)
+    val appcps = parameters.collect({ case (m) if m.startsWith("-appcp=") => m.substring("-appcp=".length)})
+
+    def verifyFile(filename: String) : Option[File] =  {
+      var file = new File(filename)
+
+      if (!file.exists())
+        None
+      else
+        Option(file)
+    }
+    var appContext = appcps.map(verifyFile).flatten.map(f => f.getAbsolutePath()).toSet
+
+    var slices = slice(project, enhancedCapFilter, appContext)
 
     CapSlicingResult("done")
   }
 
 
-  def slice(project: Project[URL], caps : Set[Capability]) : Set[JarFile] = {
-    val slice: Map[ClassFile, Set[Method]] = computeSlice(project, caps)
+  def slice(project: Project[URL], caps : Set[Capability], appContext : Set[String]) : Set[JarFile] = {
+    val slice: Map[ClassFile, Set[Method]] = computeSlice(project, caps, appContext)
+
+
 
     val slicedJarFiles: Set[JarFile] = sliceToJars(project, slice)
 
     slicedJarFiles
   }
 
-  def computeSlice(project: Project[URL], caps : Set[Capability]) : Map[ClassFile, Set[Method]]
+  def computeSlice(project: Project[URL], caps : Set[Capability], appContext : Set[String]) : Map[ClassFile, Set[Method]]
 
   def sliceToJars(project: Project[URL], slicingInfo : Map[ClassFile, Set[Method]]): Set[JarFile] = {
 
@@ -108,9 +122,8 @@ trait Slicer extends AnalysisExecutor with OneStepAnalysis[URL, SlicingResult] {
         val newJarFilename = "/tmp/" + jarFileName._1.substring(jarFileName._1.lastIndexOf("/") + 1)
         val jarFile: JarFile = new SimpleJarFile(newJarFilename)
         val classFiles =
-          jarFileName._2.map(
+          jarFileName._2.filter(cf => (slicingInfo.exists(e => e._1.fqn == cf.fqn.replace(".", "/")))).map(
             cf => {
-              if (slicingInfo.exists(e => e._1.fqn == cf.fqn.replace(".", "/"))) {
                 val currentClassSlice: (ClassFile, Set[Method]) = slicingInfo.collectFirst({ case (c, methodSet) if c.fqn == cf.fqn.replace(".", "/") => (c, methodSet) }).get
 
                 val filteredMethods = cf.methods.filter { m ⇒
@@ -128,8 +141,7 @@ trait Slicer extends AnalysisExecutor with OneStepAnalysis[URL, SlicingResult] {
                 val fullPath = project.source(ObjectType(currentClassSlice._1.fqn)).get.toString
                 val path = fullPath.substring(fullPath.indexOf("!") + 1)
                 (path, filteredCFBytes)
-              }
-            }).asInstanceOf[Seq[(String, Array[Byte])]]
+            })
         classFiles.foreach(e => jarFile.addFile(e._1, e._2))
         jarFile.close()
         jarFile
@@ -137,5 +149,7 @@ trait Slicer extends AnalysisExecutor with OneStepAnalysis[URL, SlicingResult] {
     )
     slicedJarFiles.toSet
   }
+
+
 }
 

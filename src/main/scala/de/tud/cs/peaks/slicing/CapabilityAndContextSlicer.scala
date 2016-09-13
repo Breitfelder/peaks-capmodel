@@ -12,9 +12,9 @@ object CapabilityAndContextSlicer extends Slicer with CapabilitySlicing with Con
   override def description: String =
     "Produces a library slice based on a set of desired/allowed capabilities."
 
-  def computeSlice(project: Project[URL], caps : Set[Capability]) : Map[ClassFile, Set[Method]] = {
+  def computeSlice(project: Project[URL], caps : Set[Capability], appContext : Set[String]) : Map[ClassFile, Set[Method]] = {
     val capSlice = sliceByCapSet(project, caps)
-    val contextSlice = sliceByContext(project)
+    val contextSlice = sliceByContext(project, appContext)
 
     capSlice.map(e => e._2).flatten.toSet.intersect(contextSlice.map(e => e._2).flatten.toSet).groupBy(m => project.classFile(m))
   }

@@ -11,5 +11,5 @@ object CapabilitySlicer extends Slicer with CapabilitySlicing {
   override def description: String =
     "Produces a library slice based on a set of desired/allowed capabilities."
 
-  def computeSlice(project: Project[URL], caps : Set[Capability]) : Map[ClassFile, Set[Method]] = sliceByCapSet(project, caps)
+  def computeSlice(project: Project[URL], caps : Set[Capability], appContext : Set[String]) : Map[ClassFile, Set[Method]] = sliceByCapSet(project, caps)
 }

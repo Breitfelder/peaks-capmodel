@@ -12,6 +12,6 @@ object ContextSlicer extends Slicer with ContextSlicing {
   override def description: String =
     "Produces a library slice based on its usage context."
 
-  def computeSlice(project: Project[URL], caps : Set[Capability]) : Map[ClassFile, Set[Method]] = sliceByContext(project)
+  def computeSlice(project: Project[URL], caps : Set[Capability], appContext : Set[String]) : Map[ClassFile, Set[Method]] = sliceByContext(project, appContext)
 
 }
