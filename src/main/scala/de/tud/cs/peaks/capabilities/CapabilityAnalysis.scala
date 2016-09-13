@@ -232,7 +232,7 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
 
     /** Returns all native methods that can be found in the project.
       *
-      * @param The OPAL project of the library under analysis.
+      * @param project The OPAL project of the library under analysis.
       */
     def getNativeMethods(project: Project[URL]): Iterable[Method] = {
         return for {
@@ -300,8 +300,6 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
       *
       * @param transitiveHull All methods that can transitively reach native calls.
       * @param capMap      The map that contains the capabilities.
-      * @param listMethods True, and every library method with capabilities is printed with the according capability set.
-      *                   False, nothing happens.
       * @param project The corresponding OPAL project.
       */
     def getReportTuples(transitiveHull: scala.collection.mutable.Set[Method],
