@@ -45,7 +45,7 @@ trait ContextSlicing {
 
 
     def computeNecessaryMethods(classes : Set[ClassFile]) : Set[Method] = {
-      classes.map(c => c.methods).flatten.filter(m => { m.isStaticInitializer || (m.isConstructor && m.parametersCount == 1) })
+      classes.map(c => c.methods).flatten.filter(m => { m.isStaticInitializer }) // || (m.isConstructor && m.parametersCount == 1) })
     }
 
 
