@@ -6,6 +6,7 @@ import de.tud.cs.peaks.capabilities.LibraryCapabilityAnalysis
 import org.opalj.ai.analyses.cg.{CHACallGraphAlgorithmConfiguration, CallGraph, CallGraphFactory, ExtVTACallGraphAlgorithmConfiguration}
 import org.opalj.br.{ClassFile, Method, ObjectType}
 import org.opalj.br.analyses.Project
+import org.opalj.br.instructions.{GETSTATIC, Instruction}
 
 import scala.collection.mutable
 
@@ -38,9 +39,38 @@ trait ContextSlicing {
     result ++= appToLibCalls
 
     result ++= computeNecessaryMethods(appToLibCalls.map(project.classFile(_)).toSet)
+    result ++= computeDependencies(appToLibCalls)
+    result ++= computeFieldAccess(result)
+
+
 
     def computeNecessaryMethods(classes : Set[ClassFile]) : Set[Method] = {
-      classes.map(c => c.methods).flatten.filter(m => m.isStaticInitializer || m.isConstructor)
+      classes.map(c => c.methods).flatten.filter(m => { m.isStaticInitializer || (m.isConstructor && m.parametersCount == 1) })
+    }
+
+
+    def computeDependencies(methods : Iterable[Method]) : Set[Method] = {
+
+      def isSupertypeMethod (referenceMethod : Method, candidateMethod : Method) : Boolean = {
+        candidateMethod.hasSignature(referenceMethod.name, referenceMethod.descriptor)
+      }
+
+      var result : Set[Method] = Set()
+      for (targetMethod <- methods) {
+        var superTypes = project.classHierarchy.allSupertypes(ObjectType(project.classFile(targetMethod).fqn)).map(project.classFile(_).get)
+        result ++= superTypes.map(c => c.methods).flatten.filter(isSupertypeMethod(targetMethod, _))
+      }
+
+      result
+    }
+
+    def computeFieldAccess(methods : Iterable[Method]) : Set[Method] = {
+
+      val pf: PartialFunction[Instruction, Iterable[Method]] = { _ match {
+        case gs : GETSTATIC => computeNecessaryMethods(Set(project.classFile(gs.declaringClass).get))
+      } }
+
+      methods.filter(m => !m.body.isEmpty).map(m => m.body.get.instructions).flatten.collect(pf).flatten.toSet
     }
 
 
@@ -50,10 +80,12 @@ trait ContextSlicing {
     while (workQueue.nonEmpty) {
       val current = workQueue.dequeue()
 
-      val newCalls = cg.calls(current).map(_._2).flatten.filter(m => libSources.contains(toJarSource(project.source(ObjectType(project.classFile(m).fqn)).get)) && !result.contains(m))
+      var newCalls = cg.calls(current).map(_._2).flatten.filter(m => libSources.contains(toJarSource(project.source(ObjectType(project.classFile(m).fqn)).get)) && !result.contains(m))
+      newCalls ++= computeNecessaryMethods(newCalls.map(project.classFile(_)).toSet)
+      newCalls ++= computeDependencies(newCalls)
+      newCalls ++= computeFieldAccess(newCalls)
 
       result ++= newCalls
-      //result ++= computeNecessaryMethods(newCalls.map(project.classFile(_)).toSet)
       workQueue ++= newCalls
     }
 
