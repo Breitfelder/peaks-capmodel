@@ -43,9 +43,17 @@ trait ContextSlicing {
     result ++= computeFieldAccess(result)
 
 
+    def isLibraryMethod(m : Method) : Boolean = {
+      isLibraryClass(project.classFile(m))
+    }
+
+    def isLibraryClass(c: ClassFile) : Boolean = {
+      libSources.contains(toJarSource(project.source(ObjectType(c.fqn)).get))
+    }
+
 
     def computeNecessaryMethods(classes : Set[ClassFile]) : Set[Method] = {
-      classes.map(c => c.methods).flatten.filter(m => { m.isStaticInitializer }) // || (m.isConstructor && m.parametersCount == 1) })
+      classes.filter(isLibraryClass(_)).map(c => c.methods).flatten.filter(m => { m.isStaticInitializer }) // || (m.isConstructor && m.parametersCount == 1) })
     }
 
 
@@ -58,7 +66,7 @@ trait ContextSlicing {
       var result : Set[Method] = Set()
       for (targetMethod <- methods) {
         var superTypes = project.classHierarchy.allSupertypes(ObjectType(project.classFile(targetMethod).fqn)).map(project.classFile(_).get)
-        result ++= superTypes.map(c => c.methods).flatten.filter(isSupertypeMethod(targetMethod, _))
+        result ++= superTypes.map(c => c.methods).flatten.filter(m => isSupertypeMethod(targetMethod, m) && isLibraryMethod(m))
       }
 
       result
@@ -80,7 +88,7 @@ trait ContextSlicing {
     while (workQueue.nonEmpty) {
       val current = workQueue.dequeue()
 
-      var newCalls = cg.calls(current).map(_._2).flatten.filter(m => libSources.contains(toJarSource(project.source(ObjectType(project.classFile(m).fqn)).get)) && !result.contains(m))
+      var newCalls = cg.calls(current).map(_._2).flatten.filter(m => isLibraryMethod(m) && !result.contains(m))
       newCalls ++= computeNecessaryMethods(newCalls.map(project.classFile(_)).toSet)
       newCalls ++= computeDependencies(newCalls)
       newCalls ++= computeFieldAccess(newCalls)
