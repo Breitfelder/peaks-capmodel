@@ -11,4 +11,4 @@ libraryDependencies ++= Seq(
 							
 assemblyJarName in assembly := "PEAKS_JavaCapAnalysis.jar"
 
-mainClass in assembly := Some("de.tud.cs.peaks.main.LibraryAnalysisLauncher")
+mainClass in assembly := Some("de.tud.cs.peaks.capabilities.LibraryCapabilityAnalysis")

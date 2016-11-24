@@ -33,21 +33,24 @@ trait ContextSlicing {
 
     println("appMethod: " + appMethods.size + " - appMethodCalls: " + appMethodCalls.size + " - appToLibCalls: " + appToLibCalls.size)
 
-    appToLibCalls.foreach(m => println(m.toJava(project.classFile(m))))
+    //appToLibCalls.foreach(m => println(m.toJava(project.classFile(m))))
 
     val result = new mutable.HashSet[Method]()
     result ++= appToLibCalls
 
     result ++= computeNecessaryMethods(appToLibCalls.map(project.classFile(_)).toSet)
+    result ++= computeDependencies(appMethods)
     result ++= computeDependencies(appToLibCalls)
     result ++= computeFieldAccess(result)
 
 
     def isLibraryMethod(m : Method) : Boolean = {
+      if (m == null) return false;
       isLibraryClass(project.classFile(m))
     }
 
     def isLibraryClass(c: ClassFile) : Boolean = {
+      if (c == null) return false;
       libSources.contains(toJarSource(project.source(ObjectType(c.fqn)).get))
     }
 
@@ -65,9 +68,13 @@ trait ContextSlicing {
 
       var result : Set[Method] = Set()
       for (targetMethod <- methods) {
-        var superTypes = project.classHierarchy.allSupertypes(ObjectType(project.classFile(targetMethod).fqn)).map(project.classFile(_).get)
+        var superTypes = project.classHierarchy.allSupertypes(ObjectType(project.classFile(targetMethod).fqn)).map(project.classFile(_).getOrElse(null)).filter(e => e != null)
         result ++= superTypes.map(c => c.methods).flatten.filter(m => isSupertypeMethod(targetMethod, m) && isLibraryMethod(m))
       }
+
+      val usedLibraryAnnotations : Iterable[ClassFile] = methods.map(_.annotations).flatten.flatMap(a => project.classFile(a.annotationType.asObjectType)).filter(isLibraryClass(_))
+
+      result ++= usedLibraryAnnotations.flatMap(c => c.methods)
 
       result
     }
@@ -75,7 +82,7 @@ trait ContextSlicing {
     def computeFieldAccess(methods : Iterable[Method]) : Set[Method] = {
 
       val pf: PartialFunction[Instruction, Iterable[Method]] = { _ match {
-        case gs : GETSTATIC => computeNecessaryMethods(Set(project.classFile(gs.declaringClass).get))
+        case gs : GETSTATIC => computeNecessaryMethods(Set(project.classFile(gs.declaringClass).getOrElse(null)))
       } }
 
       methods.filter(m => !m.body.isEmpty).map(m => m.body.get.instructions).flatten.collect(pf).flatten.toSet

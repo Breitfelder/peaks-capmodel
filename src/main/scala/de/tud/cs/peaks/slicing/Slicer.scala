@@ -119,7 +119,7 @@ trait Slicer extends AnalysisExecutor with OneStepAnalysis[URL, SlicingResult] {
 
     val slicedJarFiles = daClasses.map(
       jarFileName => {
-        val newJarFilename = "/tmp/" + jarFileName._1.substring(jarFileName._1.lastIndexOf("/") + 1)
+        val newJarFilename = "/Users/benhermann/Code/slicing-eval-app/slices/" + jarFileName._1.substring(jarFileName._1.lastIndexOf("/") + 1)
         val jarFile: JarFile = new SimpleJarFile(newJarFilename)
         val classFiles =
           jarFileName._2.filter(cf => (slicingInfo.exists(e => e._1.fqn == cf.fqn.replace(".", "/")))).map(

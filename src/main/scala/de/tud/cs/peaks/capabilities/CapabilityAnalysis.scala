@@ -28,6 +28,7 @@
  */
 package de.tud.cs.peaks.capabilities
 
+import java.io.File
 import java.net.URL
 
 import de.tud.cs.peaks.extractor.CapabilityMapping
@@ -348,6 +349,20 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
         val capFilter = _PARAM_MAP.collect { case (key, value) if parameters.contains(key) => value }
         val listMethods = capFilter.nonEmpty || parameters.contains("-lm")
         if (listMethods) printMethods(methodsWithCapabilities.toSet, capFilter.toSet, project)
+
+        def printToFile(f: java.io.File)(op: java.io.FileWriter => Unit) {
+            val p = new java.io.FileWriter(f, true)
+            try { op(p) } finally { p.close() }
+        }
+
+        def toJarSource(u: URL): String = u.toString().substring("jar:file:".length, u.toString().indexOf("!"))
+
+
+        val fullJarName = toJarSource(project.source(ObjectType(project.allProjectClassFiles.toList.apply(0).fqn)).get)
+
+
+        printToFile(new File("/Users/benhermann/Desktop/caps.csv")) { p => p.write(fullJarName.concat(",").concat(methodsWithCapabilities.foldLeft(Set.empty[Capability])((res, cur) ⇒ res.++(cur._2)).map { x ⇒ x.shortForm() }.mkString("[", ", ", "]")).concat("\n"))}
+
 
         CapabilityReport(methodsWithCapabilities.foldLeft(Set.empty[Capability])((res, cur) ⇒ res.++(cur._2)))
     }
