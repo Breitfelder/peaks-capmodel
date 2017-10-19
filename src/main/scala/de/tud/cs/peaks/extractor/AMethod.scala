@@ -93,7 +93,7 @@ object MethodTransformation {
      */
     def getTMethod(theProject: Project[URL], method: Method): TMethod = {
 
-        val path = theProject.classFile(method).fqn
+        val path = method.classFile.fqn
         val packageClassDivider = path.lastIndexOf("/")
 
         return TMethod(path.substring(0, packageClassDivider), path.substring(packageClassDivider + 1), method.name, method.returnType.toJava,

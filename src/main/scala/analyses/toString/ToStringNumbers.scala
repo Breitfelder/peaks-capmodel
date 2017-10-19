@@ -61,7 +61,7 @@ object ToStringOccurences extends AnalysisExecutor {
           "\nabstract: " + toStringMethods.filter { method => method.isAbstract }.size +
           "\nstatic: " + toStringMethods.filter { method => method.isStatic }.size +
           "\nwith Arguments: " + toStringMethods.filter { method => method.parameterTypes.size > 1 }.size + 
-          "\nnormal: " + toStringMethods.filter { method => !method.isStatic && !method.isAbstract && method.parametersCount == 1}.size)
+          "\nnormal: " + toStringMethods.filter { method => !method.isStatic && !method.isAbstract && method.descriptor.parametersCount == 1}.size)
     }
 
   }

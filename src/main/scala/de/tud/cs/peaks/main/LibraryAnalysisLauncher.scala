@@ -39,7 +39,7 @@ import de.tud.cs.peaks.opalreports.CapabilityAnaylsisResult
 import de.tud.cs.peaks.opalreports.CapabilityReport
 import org.opalj.log.OPALLogger
 import org.opalj.log.LogContext
-import org.opalj.ai.domain.LogContextProvider
+
 
 object LibraryAnalysisLauncher {
     

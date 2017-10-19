@@ -32,7 +32,9 @@ object JarStatistics  extends AnalysisExecutor with OneStepAnalysis[URL, Stats] 
     val fullJarName = toJarSource(project.source(ObjectType(project.allProjectClassFiles.toList.apply(0).fqn)).get)
 
 
-    printToFile(new File("/Users/benhermann/Desktop/stats.csv")) { p => p.write(fullJarName.concat(",").concat(result).concat("\n"))}
+    // TODO output
+    // original: printToFile(new File("/Users/benhermann/Desktop/stats.csv")) { p => p.write(fullJarName.concat(",").concat(result).concat("\n"))}
+    printToFile(new File("stats.csv")) { p => p.write(fullJarName.concat(",").concat(result).concat("\n"))}
 
     return new Stats(result)
   }

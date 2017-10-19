@@ -45,7 +45,7 @@ import org.opalj.ai.analyses.cg.ComputedCallGraph
 import scala.collection.mutable.TreeSet
 import org.opalj.ai.analyses.cg.DefaultVTACallGraphAlgorithmConfiguration
 import org.opalj.UShort
-import org.opalj.collection.UShortSet
+import org.opalj.collection.immutable.IntArraySet
 import org.opalj.br.instructions.Instruction
 import org.opalj.br.ObjectType
 import org.opalj.br.instructions.INVOKEVIRTUAL
@@ -75,7 +75,7 @@ object CallTreeOfMethod extends CapabilityAnalysis{
             "First identify all native calls than propagate capabilities to the library and build the call tree of a method afterwards."
             
 
-        override def filterMethod(callee: Method, caller: Method, pcs: UShortSet, project: Project[URL]): Boolean = true
+        override def filterMethod(callee: Method, caller: Method, pcs: IntArraySet, project: Project[URL]): Boolean = true
         
         override def doAnalyze(project: Project[URL], parameters: Seq[String], isInterrupted: () ⇒ Boolean) = {
             
@@ -121,13 +121,13 @@ object CallTreeOfMethod extends CapabilityAnalysis{
 
                 def pprint(prefix: String, isLeaf: Boolean): Unit = {
                     if (!alreadyVisited.contains(value)) {
-                        val text = s"$prefix ${getParentSymbol(isLeaf)} ${project.classFile(value).fqn+" "+value.toString()}"
+                        val text = s"$prefix ${getParentSymbol(isLeaf)} ${value.classFile.fqn+" "+value.toString()}"
                         println(text)
                         alreadyVisited.+=(value)
                         for (child ← children) {
                             child.pprint(s"$prefix ${getChildrenSymbol(isLeaf)}", child eq children.last)
                         }
-                    } else println(s"$prefix ${getParentSymbol(isLeaf)} linked to --> ${project.classFile(value).fqn+" "+value.toJava}")
+                    } else println(s"$prefix ${getParentSymbol(isLeaf)} linked to --> ${value.toJava}")
                 }
 
                 def getParentSymbol(isLeaf: Boolean): String = {

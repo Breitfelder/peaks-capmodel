@@ -28,16 +28,16 @@ trait CapabilitySlicing {
     val removedCaps = removed.foldLeft(Set.empty[Capability])((res, cur) ⇒ res.++(cur._2))
     println("Capabilities removed: (" + removed.size + " method(s)) " + removedCaps.map { x ⇒ x.shortForm() }.mkString("[", ", ", "]"))
 
-    removed.foreach(m => println(m._1.toJava(project.classFile(m._1))))
+    removed.foreach(m => println(m._1.toJava))
 
-    val libraryMethods = project.methods().filter(m => !LibraryCapabilityAnalysis.isJclSource(m, project))
+    val libraryMethods = project.allMethods.filter(m => !LibraryCapabilityAnalysis.isJclSource(m, project))
 
     println("Complete library method count: " + libraryMethods.size)
 
     val newSlice = libraryMethods.toSet -- removed.map(tuple => tuple._1).toSet
     println("New slice method count: " + newSlice.size)
 
-    val slice: Map[ClassFile, Set[Method]] = newSlice.groupBy(m => project.classFile(m))
+    val slice: Map[ClassFile, Set[Method]] = newSlice.groupBy(m => m.classFile)
     slice
   }
 

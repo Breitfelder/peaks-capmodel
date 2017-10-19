@@ -47,10 +47,10 @@ object RunnableAsParamAnalysis extends AnalysisExecutor {
             val runnableAsParamMethods =
                 for {
                     classFile ← project.allClassFiles
-                    method ← classFile.methods if method.isPrivate && method.parametersCount > 0 && method.parameterTypes.contains(ObjectType("java/lang/Runnable"))
+                    method ← classFile.methods if method.isPrivate && method.parameterTypes.contains(ObjectType("java/lang/Runnable"))
                 } yield (classFile, method)
 
-            BasicReport(runnableAsParamMethods.map(x ⇒ x._1.fqn+" "+x._2.toJava()).mkString("\n"))
+            BasicReport(runnableAsParamMethods.map(x ⇒ x._1.fqn+" "+x._2.toJava).mkString("\n"))
         }
     }
 }

@@ -40,7 +40,8 @@ object SignerCheck {
     
     // trial
     val sjf = new SignedJarFile(new FileOutputStream("test.jar"), keystore, keyname, keypass)
-      
+    
+    // TODO make path independent from user 
     val fileContent : Array[Byte] = Files.readAllBytes(Paths.get("/Users/benhermann/Code/peaks-capmodel/target/scala-2.11/classes/de/tud/cs/peaks/repackaging/SignedJarFile.class"))
     sjf.addFile("de/tud/cs/peaks/repackaging/SignedJarFile.class", fileContent)
     sjf.close()

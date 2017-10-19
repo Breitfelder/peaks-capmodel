@@ -111,7 +111,7 @@ trait Slicer extends AnalysisExecutor with OneStepAnalysis[URL, SlicingResult] {
 
   def sliceToJars(project: Project[URL], slicingInfo : Map[ClassFile, Set[Method]]): Set[JarFile] = {
 
-    val sourceJars = slicingInfo.keys.map(c => project.source(ObjectType(c.fqn)).get.toString)
+    val sourceJars = slicingInfo.keys.map(c => project.source(c.thisType).get.toString)
                                      .map(source => source.substring("jar:file:".length, source.indexOf("!")))
 
     // read in source jars in
@@ -119,12 +119,13 @@ trait Slicer extends AnalysisExecutor with OneStepAnalysis[URL, SlicingResult] {
 
     val slicedJarFiles = daClasses.map(
       jarFileName => {
+        // TODO make path independent from user 
         val newJarFilename = "/Users/benhermann/Code/slicing-eval-app/slices/" + jarFileName._1.substring(jarFileName._1.lastIndexOf("/") + 1)
         val jarFile: JarFile = new SimpleJarFile(newJarFilename)
         val classFiles =
-          jarFileName._2.filter(cf => (slicingInfo.exists(e => e._1.fqn == cf.fqn.replace(".", "/")))).map(
+          jarFileName._2.filter(cf => (slicingInfo.exists(e => e._1.fqn == cf.thisType.asJava.replace(".", "/")))).map(
             cf => {
-                val currentClassSlice: (ClassFile, Set[Method]) = slicingInfo.collectFirst({ case (c, methodSet) if c.fqn == cf.fqn.replace(".", "/") => (c, methodSet) }).get
+                val currentClassSlice: (ClassFile, Set[Method]) = slicingInfo.collectFirst({ case (c, methodSet) if c.fqn == cf.thisType.asJava.replace(".", "/") => (c, methodSet) }).get
 
                 val filteredMethods = cf.methods.filter { m ⇒
                   implicit val cp = cf.constant_pool

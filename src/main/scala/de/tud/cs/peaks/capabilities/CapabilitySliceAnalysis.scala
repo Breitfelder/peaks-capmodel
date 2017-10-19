@@ -60,7 +60,7 @@ object CapabilitySliceAnalysis extends CapabilityAnalysis {
      * @note current assumption: dependencies are in the same jar as the project. (as sub jars)
      */
     def nonProjectSource(method: Method, project: Project[URL]): Boolean = {
-        val classFile = project.classFile(method)
+        val classFile = method.classFile
         val src = project.source(ObjectType(classFile.fqn)).get.toString().split("!")
         return src.size > 2 || isJclSource(method, project)
     }

@@ -37,7 +37,7 @@ import org.opalj.ai.analyses.cg.{CallGraph, CallGraphFactory, ExtVTACallGraphAlg
 import org.opalj.br.{ClassFile, Method, ObjectType, ReferenceType}
 import org.opalj.br.analyses.{AnalysisExecutor, OneStepAnalysis, Project}
 import org.opalj.br.instructions.{INVOKEINTERFACE, INVOKEVIRTUAL}
-import org.opalj.collection.UShortSet
+import org.opalj.collection.immutable.IntArraySet
 import org.opalj.log.GlobalLogContext
 
 import scala.collection.mutable
@@ -115,7 +115,7 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
       * @param pcs The set of program counters of the of the instructions in the method body of the caller method.
       * @param project Project of the current context.
       */
-    def isInterfaceOrAbstractType(caller: Method, pcs: UShortSet, project: Project[URL]): Boolean = {
+    def isInterfaceOrAbstractType(caller: Method, pcs: IntArraySet, project: Project[URL]): Boolean = {
         return pcs.exists { pc =>
             caller.body.get.instructions(pc) match {
                 case INVOKEINTERFACE(_, _, _) ⇒ true
@@ -149,8 +149,8 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
       * @param project Project of the current context.
       */
     def isUnimplementedMethod(caller: Method, project: Project[URL]): Boolean = {
-        var relevantClasses = project.classFile(caller).interfaceTypes
-        var objectType = project.classFile(caller).superclassType
+        var relevantClasses = caller.classFile.interfaceTypes
+        var objectType = caller.classFile.superclassType
         while (objectType.nonEmpty) {
             var curCf = project.classFile(objectType.get)
             if (curCf.nonEmpty) {
@@ -173,7 +173,7 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
       * @param caller The calling Method of the call.
       * @param pcs The set of program counters of the of the instructions in the method body of the caller method.
       */
-    def nonObjectCall(caller: Method, pcs: UShortSet): Boolean = {
+    def nonObjectCall(caller: Method, pcs: IntArraySet): Boolean = {
         return pcs.exists { pc =>
             caller.body.get.instructions(pc) match {
                 case INVOKEVIRTUAL(ObjectType.Object, _, _) ⇒ false
@@ -190,9 +190,9 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
       * @param pcs The set of program counters of the of the instructions in the method body of the caller method.
       * @param project The corresponding OPAL project.
       */
-    def filterMethod(callee: Method, caller: Method, pcs: UShortSet, project: Project[URL]): Boolean = {
-        val calleeCF = project.classFile(callee)
-        val callerCF = project.classFile(caller)
+    def filterMethod(callee: Method, caller: Method, pcs: IntArraySet, project: Project[URL]): Boolean = {
+        val calleeCF = callee.classFile
+        val callerCF = callee.classFile
         val isCallOnObject = nonObjectCall(caller, pcs)
         var result = true
         if (isJclSourceByClass(calleeCF, project)) {
@@ -209,7 +209,7 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
       * @param project The corresponding OPAL project.
       */
     def isJclSource(method: Method, project: Project[URL]): Boolean = {
-        isJclSourceByClass(project.classFile(method), project)
+        isJclSourceByClass(method.classFile, project)
     }
 
     /** Return true, if the given class file is declared within the 'rt.jar'.
@@ -269,7 +269,7 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
         result ++= nativeMethods.toList
 
         val workQueue = new Queue[Method]()
-        workQueue ++= nativeMethods.toList.sortBy( m => m.toJava(project.classFile(m)))
+        workQueue ++= nativeMethods.toList.sortBy( m => m.toJava)
 
         while (workQueue.nonEmpty) {
             val currentMethod = workQueue.dequeue
@@ -286,7 +286,7 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
 
                 val newCallers = callers.keySet.filterNot { result.contains(_) }
                 result ++= newCallers
-                workQueue ++= newCallers.toList.sortBy( m => m.toJava(project.classFile(m)))
+                workQueue ++= newCallers.toList.sortBy( m => m.toJava)
             }
         }
 
@@ -328,7 +328,7 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
       * @param filterSet A Set of Capabilities which is used to filter interesting methods.
       */
     protected def printMethods(methodsWithCapabilities: Set[(Method, HashSet[Capability])], filterSet: Set[Capability], project: Project[URL]): Unit = {
-        def formatMethod(method: Method, capSet: HashSet[Capability], project: Project[URL]): String = project.classFile(method).fqn + "  -  " + method.toString() + " => " + capSet.map(x ⇒ x.shortForm()).mkString("[", ", ", "]")
+        def formatMethod(method: Method, capSet: HashSet[Capability], project: Project[URL]): String = method.classFile.fqn + "  -  " + method.toString() + " => " + capSet.map(x ⇒ x.shortForm()).mkString("[", ", ", "]")
 
         for ((method, capSet) <- methodsWithCapabilities)
             if (filterSet.nonEmpty) {
@@ -361,7 +361,9 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
         val fullJarName = toJarSource(project.source(ObjectType(project.allProjectClassFiles.toList.apply(0).fqn)).get)
 
 
-        printToFile(new File("/Users/benhermann/Desktop/caps.csv")) { p => p.write(fullJarName.concat(",").concat(methodsWithCapabilities.foldLeft(Set.empty[Capability])((res, cur) ⇒ res.++(cur._2)).map { x ⇒ x.shortForm() }.mkString("[", ", ", "]")).concat("\n"))}
+        // TODO output
+        // original:      printToFile(new File("/Users/benhermann/Desktop/caps.csv")) { p => p.write(fullJarName.concat(",").concat(methodsWithCapabilities.foldLeft(Set.empty[Capability])((res, cur) ⇒ res.++(cur._2)).map { x ⇒ x.shortForm() }.mkString("[", ", ", "]")).concat("\n"))}
+        printToFile(new File("caps.csv")) { p => p.write(fullJarName.concat(",").concat(methodsWithCapabilities.foldLeft(Set.empty[Capability])((res, cur) ⇒ res.++(cur._2)).map { x ⇒ x.shortForm() }.mkString("[", ", ", "]")).concat("\n"))}
 
 
         CapabilityReport(methodsWithCapabilities.foldLeft(Set.empty[Capability])((res, cur) ⇒ res.++(cur._2)))

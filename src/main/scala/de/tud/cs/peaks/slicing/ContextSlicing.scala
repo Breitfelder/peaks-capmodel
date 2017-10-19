@@ -29,7 +29,7 @@ trait ContextSlicing {
 
     var appMethods: Iterable[Method] = appClasses.map(c => c.methods).flatten
     var appMethodCalls: Iterable[Method] = appMethods.map(m => cg.calls(m).map(_._2).flatten).flatten
-    val appToLibCalls: Iterable[Method] = appMethodCalls.filter(m => libSources.contains(toJarSource(project.source(ObjectType(project.classFile(m).fqn)).get)))
+    val appToLibCalls: Iterable[Method] = appMethodCalls.filter(m => libSources.contains(toJarSource(project.source(m.classFile.thisType).get)))
 
     println("appMethod: " + appMethods.size + " - appMethodCalls: " + appMethodCalls.size + " - appToLibCalls: " + appToLibCalls.size)
 
@@ -38,7 +38,7 @@ trait ContextSlicing {
     val result = new mutable.HashSet[Method]()
     result ++= appToLibCalls
 
-    result ++= computeNecessaryMethods(appToLibCalls.map(project.classFile(_)).toSet)
+    result ++= computeNecessaryMethods(appToLibCalls.map(_.classFile).toSet)
     result ++= computeDependencies(appMethods)
     result ++= computeDependencies(appToLibCalls)
     result ++= computeFieldAccess(result)
@@ -46,7 +46,7 @@ trait ContextSlicing {
 
     def isLibraryMethod(m : Method) : Boolean = {
       if (m == null) return false;
-      isLibraryClass(project.classFile(m))
+      isLibraryClass(m.classFile)
     }
 
     def isLibraryClass(c: ClassFile) : Boolean = {
@@ -68,7 +68,7 @@ trait ContextSlicing {
 
       var result : Set[Method] = Set()
       for (targetMethod <- methods) {
-        var superTypes = project.classHierarchy.allSupertypes(ObjectType(project.classFile(targetMethod).fqn)).map(project.classFile(_).getOrElse(null)).filter(e => e != null)
+        var superTypes = project.classHierarchy.allSupertypes(ObjectType(targetMethod.classFile.fqn)).map(project.classFile(_).getOrElse(null)).filter(e => e != null)
         result ++= superTypes.map(c => c.methods).flatten.filter(m => isSupertypeMethod(targetMethod, m) && isLibraryMethod(m))
       }
 
@@ -90,13 +90,13 @@ trait ContextSlicing {
 
 
     val workQueue = new mutable.Queue[Method]()
-    workQueue ++= result.toList.sortBy(m => m.toJava(project.classFile(m)))
+    workQueue ++= result.toList.sortBy(m => m.toJava)
 
     while (workQueue.nonEmpty) {
       val current = workQueue.dequeue()
 
       var newCalls = cg.calls(current).map(_._2).flatten.filter(m => isLibraryMethod(m) && !result.contains(m))
-      newCalls ++= computeNecessaryMethods(newCalls.map(project.classFile(_)).toSet)
+      newCalls ++= computeNecessaryMethods(newCalls.map(_.classFile).toSet)
       newCalls ++= computeDependencies(newCalls)
       newCalls ++= computeFieldAccess(newCalls)
 
@@ -107,7 +107,7 @@ trait ContextSlicing {
 
     println("Final result: " + result.size)
 
-    result.toSet.groupBy(m => project.classFile(m))
+    result.toSet.groupBy(m => m.classFile)
   }
 
   /** Returns the CallGraph of the given project.

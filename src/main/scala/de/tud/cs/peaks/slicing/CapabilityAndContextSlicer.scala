@@ -16,7 +16,7 @@ object CapabilityAndContextSlicer extends Slicer with CapabilitySlicing with Con
     val capSlice = sliceByCapSet(project, caps)
     val contextSlice = sliceByContext(project, appContext)
 
-    capSlice.map(e => e._2).flatten.toSet.intersect(contextSlice.map(e => e._2).flatten.toSet).groupBy(m => project.classFile(m))
+    capSlice.map(e => e._2).flatten.toSet.intersect(contextSlice.map(e => e._2).flatten.toSet).groupBy(m => m.classFile)
   }
 
 }
