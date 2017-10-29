@@ -45,3 +45,6 @@ Icon?
 .cache-main
 .classpath
 .project
+## Eclipse Project Files
+.settings
+build.properties
