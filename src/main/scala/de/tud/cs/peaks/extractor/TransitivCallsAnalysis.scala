@@ -30,7 +30,7 @@ package de.tud.cs.peaks.extractor
 
 import java.net.URL
 
-import scala.collection.mutable.{HashMap, HashSet}
+import scala.collection.mutable.{ HashMap, HashSet }
 import org.opalj.br.Method
 import org.opalj.br.analyses.Project
 import de.tud.cs.peaks.capabilities.Capability
@@ -45,37 +45,37 @@ import de.tud.cs.peaks.opalreports.StatisticalReport
  */
 object TransitivCallsAnalysis extends CapabilityAnalysis {
 
-    override def title: String = "Get all transitive native calls of the library/project."
+  override def title: String = "Get all transitive native calls of the library/project."
 
-    override def description: String =
-            "First identify all native calls then harvest all transitive native calls."
-    
-    
-    /**
-     * Returns false, this analysis does not apply any filter.
-     * 
-     * @note see[CapabilityAnalysis#filterResults]
-     */
-    override def filterResults = (_,_) => false
-    
-    override def doAnalyze(project: Project[URL], parameters: Seq[String], isInterrupted: () ⇒ Boolean) = {
+  override def description: String =
+    "First identify all native calls then harvest all transitive native calls."
 
-        val capMap = HashMap.empty[Method, HashSet[Capability]]
+  /**
+   * Returns false, this analysis does not apply any filter.
+   *
+   * @note see[CapabilityAnalysis#filterResults]
+   */
+  override def filterResults = (_, _) => false
 
-        val nativeMethods = getNativeMethods(project)
+  override def doAnalyze(project: Project[URL], parameters: Seq[String], isInterrupted: () ⇒ Boolean) = {
 
-        seedIdentityCaps(nativeMethods, capMap, project)
+    val capMap = HashMap.empty[Method, HashSet[Capability]]
 
-        val callGraph = buildCallGraph(project)
+    val nativeMethods = getNativeMethods(project)
 
-        val transitiveHull = calulateTransitiveHull(nativeMethods, capMap, callGraph, project)
-        
-        val methodsWithCapabilities = getReportTuples(transitiveHull, capMap, project)
-        
-        val capFilter = _PARAM_MAP.collect{ case (key, value) if parameters.contains(key) => value }
-        val listMethods = capFilter.nonEmpty || parameters.contains("-lm")
-        if(listMethods) printMethods(methodsWithCapabilities.toSet, capFilter.toSet, project)
-        
-        StatisticalReport("")
-    }
+    seedIdentityCaps(nativeMethods, capMap, project)
+
+    val callGraph = buildCallGraph(project)
+
+    val transitiveHull = calulateTransitiveHull(nativeMethods, capMap, callGraph, project)
+
+    val methodsWithCapabilities = getReportTuples(transitiveHull, capMap, project).map(entry => (entry._1, entry._2, ""))
+
+    val capFilter = _PARAM_MAP.collect { case (key, value) if parameters.contains(key) => value }
+    val listMethods = capFilter.nonEmpty || parameters.contains("-lm")
+
+    if (listMethods) printMethods(methodsWithCapabilities.toSet, capFilter.toSet, project)
+
+    StatisticalReport("")
+  }
 }
