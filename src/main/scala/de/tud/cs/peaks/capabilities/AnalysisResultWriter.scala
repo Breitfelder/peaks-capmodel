@@ -12,9 +12,9 @@ object AnalysisResultWriter {
   /**
    * Stores the determined capabilities to an output file
    */
-  def outputCapabilities(sourcegroups: HashMap[List[String], List[(Method, List[String], String)]]) {
+  def outputCapabilities(sourcegroups: HashMap[List[String], List[(Method, List[String], String)]], outputFile: File) {
     // output file
-    val file = new File("output.txt")
+    val file = outputFile //new File("output.txt")
     val bufferedWriter = new BufferedWriter(new FileWriter(file))
 
     // flowspec output
@@ -25,8 +25,8 @@ object AnalysisResultWriter {
 
     val keys = sourcegroups.keys
 
-    bufferedWriter.write("< assmspec >\n")
-    bufferedWriter.write("    < interfacespec >\n")
+    bufferedWriter.write("<assmspec>\n")
+    bufferedWriter.write("    <interfacespec>\n")
 
     for (key <- keys) {
       val keyString = key.sorted.foldLeft("") {
@@ -37,7 +37,7 @@ object AnalysisResultWriter {
       // sourcegroup handle start if methods.size > 0
       if (methods.size > 0) {
         val sourcegroup = "sourcegroup-" + keyString // name of sourcegroup handle
-        bufferedWriter.write("        < sourcegroup handle = \"" + sourcegroup + "\" >\n")
+        bufferedWriter.write("        <sourcegroup handle = \"" + sourcegroup + "\">\n")
 
         // output of source tags
         for ((method, caps, subtype) <- methods) {
@@ -46,9 +46,9 @@ object AnalysisResultWriter {
 
           // determine methodTypeTag
           if (method.name.startsWith("<init>")) {
-            methodTypeTag = "< constructor type = \""
+            methodTypeTag = "<constructor type = \""
           } else {
-            methodTypeTag = "< method type = \""
+            methodTypeTag = "<method type = \""
           }
 
           // determine subTypeTag
@@ -58,15 +58,15 @@ object AnalysisResultWriter {
             subTypeTag = ""
           }
 
-          val methodTag = methodTypeTag + method.classFile.thisType.toJava + "\" method = \"" + method.name + method.fullyQualifiedSignature.substring(method.fullyQualifiedSignature.indexOf("(")) + subTypeTag + "\" / >"
+          val methodTag = methodTypeTag + method.classFile.thisType.toJava + subTypeTag + "\" method = \"" + method.name + method.fullyQualifiedSignature.substring(method.fullyQualifiedSignature.indexOf("(")) + "\" />"
 
-          bufferedWriter.write("            < source >\n")
+          bufferedWriter.write("            <source>\n")
           bufferedWriter.write("                " + methodTag + "\n")
-          bufferedWriter.write("            </ source >\n")
+          bufferedWriter.write("            </source>\n")
 
         }
 
-        bufferedWriter.write("        </ sourcegroup >\n") // sourcegroup handle end
+        bufferedWriter.write("        </sourcegroup>\n") // sourcegroup handle end
 
         // store sinkgroup handle information temporarily for later output
         val sinkgroupHandle = "sinkgroup-" + keyString
@@ -81,26 +81,27 @@ object AnalysisResultWriter {
 
     // sinkgroup handle start
     for ((sinkgroupHandle, caps) <- sinkgroups) {
-      bufferedWriter.write("        < sinkgroup handle = \"" + sinkgroupHandle + "\" >\n")
+      bufferedWriter.write("        <sinkgroup handle = \"" + sinkgroupHandle + "\">\n")
 
       for (cap <- caps) {
-        bufferedWriter.write("            < sink >\n")
-        bufferedWriter.write("                < resource type = \"" + CapMapper.mapCap(cap) + "\" / >\n")
-        bufferedWriter.write("            < / sink >\n")
+        bufferedWriter.write("            <sink>\n")
+        bufferedWriter.write("                <resource type = \"" + CapMapper.mapCap(cap) + "\" />\n")
+        bufferedWriter.write("            </sink>\n")
 
       }
 
-      bufferedWriter.write("        </ sinkgroup >\n")
+      bufferedWriter.write("        </sinkgroup>\n")
     } // sinkgroup handle end
 
-    bufferedWriter.write("< / interfacespec >\n") // inferfacespec end
+    bufferedWriter.write("</interfacespec>\n") // inferfacespec end
 
     // flowspec start
-    bufferedWriter.write("    < flowspec >\n")
+    bufferedWriter.write("    <flowspec>\n")
     for (flowspec <- flowspecs.toList) {
-      bufferedWriter.write("        < flow from = \"" + flowspec._1 + "\" to = \"" + flowspec._2 + "\" / >\n")
+      bufferedWriter.write("        <flow from = \"" + flowspec._1 + "\" to = \"" + flowspec._2 + "\" />\n")
     }
-    bufferedWriter.write("< / flowspec >\n")
+    bufferedWriter.write("</flowspec>\n")
+    bufferedWriter.write("</assmspec>\n")
     bufferedWriter.close()
   }
 

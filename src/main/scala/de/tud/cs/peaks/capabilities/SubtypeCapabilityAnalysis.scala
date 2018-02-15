@@ -38,7 +38,8 @@ class SubtypeCapabilityAnalysis(project: Project[URL], capMap: HashMap[Method, H
       var listOfSubtypes = ListBuffer.empty[String]
       i = i + 1
       printf(i + "/" + max + "\n")
-
+ 
+      //currentMethod.parameterTypes.toSet ++ currentMethod.body.get.instructions.filter(p)
       // loop over method instructions
       for ((pc, instruction) <- currentMethod.body.get.associateWithIndex()) {
         var calledClass: ObjectType = null
@@ -71,6 +72,7 @@ class SubtypeCapabilityAnalysis(project: Project[URL], capMap: HashMap[Method, H
             // Therefore, we catch the occurring ClassCastException.
             try {
               val declaringClassAsObjectType = declaringClass.asObjectType
+              // TODO filter object
 
               calledClass = declaringClassAsObjectType
               calledMethod = methodName

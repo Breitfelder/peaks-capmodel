@@ -40,50 +40,53 @@ import de.tud.cs.peaks.opalreports.CapabilityReport
 import org.opalj.log.OPALLogger
 import org.opalj.log.LogContext
 
-
 object LibraryAnalysisLauncher {
-    
-    val rtFile = new File("resources/jre_7.0_60/rt.jar")
-    val rtProject = Project.apply(rtFile)
-    
-    def printMenu() : Unit = {
-        val lineSep = System.getProperty("line.separator")
-        println(
-            s"$lineSep[1] Capability analysis for libraries.$lineSep" +
-            s"[2] Sliced capability analysis for projects.$lineSep" +
-            s"[3] Help."
-        )
+
+  val rtFile = new File("resources/jre_7.0_60/rt.jar")
+  val rtProject = Project.apply(rtFile)
+
+  def printMenu(): Unit = {
+    val lineSep = System.getProperty("line.separator")
+    println(
+      s"$lineSep[1] Capability analysis for libraries.$lineSep" +
+        s"[2] Sliced capability analysis for projects.$lineSep" +
+        s"[3] Help.")
+  }
+
+  def run(projectDir: File): Set[Capability] = {
+    val analizer = LibraryCapabilityAnalysis
+    val project = Project.apply(projectDir).extend(rtProject)
+    return analizer.analyze(project) match {
+      case result: CapabilityReport => return result.capabilitySet
+      case _ => Set.empty[Capability]
     }
-    
-    def run(projectDir : File): Set[Capability] = {
-        val analizer = LibraryCapabilityAnalysis
-        val project = Project.apply(projectDir).extend(rtProject)
-        return analizer.analyze(project) match {
-            case result : CapabilityReport => return result.capabilitySet
-            case _ => Set.empty[Capability]
-        }
+  }
+
+  /**
+   * Entry point regarding the console.
+   */
+  def main(args: Array[String]) {
+    var validInput = false
+    var userInput = 0
+    val argsWithRTJar = args ++ Array("""-cp=resources/jre_7.0_60/rt.jar""")
+
+    if (args.contains("-help"))
+      LibraryCapabilityAnalysis.analysis.printUsage
+    else if (args.contains("-lca"))
+      LibraryCapabilityAnalysis.main(argsWithRTJar)
+    else if (args.contains("-csa"))
+      CapabilitySliceAnalysis.main(argsWithRTJar)
+    else {
+      while (!validInput) {
+        printMenu()
+        userInput = scala.io.StdIn.readInt()
+        validInput = Seq(1, 2, 3).contains(userInput)
+      }
+      userInput match {
+        case 1 => LibraryCapabilityAnalysis.main(argsWithRTJar)
+        case 2 => CapabilitySliceAnalysis.main(argsWithRTJar)
+        case 3 => LibraryCapabilityAnalysis.analysis.printUsage
+      }
     }
-    
-    /**
-     * Entry point regarding the console. 
-     */
-    def main(args : Array[String]) {
-        var validInput = false
-        var userInput = 0
-        
-        if(args.contains("-help"))
-          LibraryCapabilityAnalysis.analysis.printUsage
-        
-        while(!validInput){
-            printMenu()
-            userInput = scala.io.StdIn.readInt()
-            validInput = Seq(1,2,3).contains(userInput)
-        }
-        val argsWithRTJar = args ++ Array("""-cp=resources/jre_7.0_60/rt.jar""")
-        userInput match {
-            case 1 => LibraryCapabilityAnalysis.main(argsWithRTJar)
-            case 2 => CapabilitySliceAnalysis.main(argsWithRTJar)
-            case 3 => LibraryCapabilityAnalysis.analysis.printUsage
-        }
-    }
+  }
 }

@@ -79,7 +79,7 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
    *
    * @note Subclasses should check whether they want to support all of them, if not, the field should be overwritten.
    */
-  val _ALLOWED_PARAMS = Seq("-lm", "-CL", "-CB", "-DB", "-FS", "-GU", "-IN", "-OS", "-NT", "-PR", "-RF", "-SC", "-SD", "-SY", "-UN", "-sa")
+  val _ALLOWED_PARAMS = Seq("-lm", "-CL", "-CB", "-DB", "-FS", "-GU", "-IN", "-OS", "-NT", "-PR", "-RF", "-SC", "-SD", "-SY", "-UN", "-sa", "-lca", "-csa", "-test")
 
   val _PARAM_MAP = Map(
     "-CL" -> Capability.ClassLoading,
@@ -424,8 +424,14 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
       }
     }
 
+    var outputFile: File = null
+    if (parameters.contains("-test"))
+      outputFile = new File("resources/test/test_tmp_results/tmp_test_result.xml")
+    else
+      outputFile = new File("subtype_analysis_result.xml")
+    
     // write results to file
-    AnalysisResultWriter.outputCapabilities(sourceGroups)
+    AnalysisResultWriter.outputCapabilities(sourceGroups, outputFile)
 
     CapabilityReport(methodsWithCapabilities.foldLeft(Set.empty[Capability])((res, cur) ⇒ res.++(cur._2)))
   }
