@@ -48,3 +48,6 @@ Icon?
 ## Eclipse Project Files
 .settings
 build.properties
+/.cache-tests
+/caps.csv
+/output.txt
