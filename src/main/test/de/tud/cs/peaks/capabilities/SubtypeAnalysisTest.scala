@@ -34,9 +34,8 @@ class SubtypeAnalysisTest extends JUnitSuite {
     val sinkgroupsResources: HashMap[String, Boolean] = new HashMap[String, Boolean]
     val methodsWithSubtypes: HashMap[String, String] = new HashMap[String, String]
 
-    val parameter = Array("""-cp=resources/test/test_cases/test_case_05.jar""", "-lca", "-sa", "-test")
+    val parameter = Array("""-cp=resources/test/test_cases/test_case_08.jar""", "-lca", "-sa", "-test")
 
-    // TODO enable method call main if test is finished
     LibraryAnalysisLauncher.main(parameter)
 
     // load result file

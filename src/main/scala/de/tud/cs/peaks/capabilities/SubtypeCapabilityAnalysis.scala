@@ -1,56 +1,72 @@
 package de.tud.cs.peaks.capabilities
 
-import org.opalj.br.analyses.Project
-import org.opalj.br.Method
 import java.net.URL
-import org.opalj.br.instructions.INVOKEDYNAMIC
-import org.opalj.br.instructions.INVOKEINTERFACE
-import org.opalj.br.instructions.INVOKEVIRTUAL
-import org.opalj.br.ObjectType
-import org.opalj.br.instructions.INVOKESTATIC
-import org.opalj.br.instructions.INVOKESPECIAL
-import org.opalj.br.MethodDescriptor
-import scala.collection.mutable.ListBuffer
-import scala.collection.mutable.HashSet
+
 import scala.collection.mutable.HashMap
+import scala.collection.mutable.HashSet
+import scala.collection.mutable.ListBuffer
+
+import org.opalj.br.Method
+import org.opalj.br.MethodDescriptor
+import org.opalj.br.ObjectType
+import org.opalj.br.analyses.Project
+import org.opalj.br.instructions.INVOKEINTERFACE
+import org.opalj.br.instructions.INVOKESPECIAL
+import org.opalj.br.instructions.INVOKESTATIC
+import org.opalj.br.instructions.INVOKEVIRTUAL
 
 /**
  * Performs a subtype analysis on the
  * results of the capability analysis
  */
-class SubtypeCapabilityAnalysis(project: Project[URL], capMap: HashMap[Method, HashSet[Capability]], capabilityAnalysisResults: Iterable[(org.opalj.br.Method, scala.collection.mutable.HashSet[de.tud.cs.peaks.capabilities.Capability], String)]) {
+class SubtypeCapabilityAnalysis(project: Project[URL], capMap: HashMap[Method, HashSet[Capability]], capabilityAnalysisResults: Iterable[AnalysisResult]) {
 
-  var CapabilitiesSubtypeAnalysis = ListBuffer.empty[(Method, HashSet[Capability], String)]
-  // hashtable attributes
-  // [KEY         , VALUE                     ]
-  // [called class, (called methods, subtypes)]
-  var subtypes = new java.util.Hashtable[(String, String), (List[Method], List[String])] //[called class, (called methods, subtypes)]
+  var CapabilitiesSubtypeAnalysis = ListBuffer.empty[AnalysisResult]
+
+  /**
+   * hashtable attributes
+   * [KEY         , VALUE                     ]
+   * [called class, (called methods, subtypes)]
+   */
+  var subtypes = new java.util.Hashtable[(String, String), (List[Method], List[String])]
 
   /**
    * Method to start the capability analysis for known subtypes.
    */
-  def startAnalysis(): List[(Method, HashSet[Capability], String)] = {
+  def startAnalysis(): Iterable[AnalysisResult] = {
     // loop over the found capability analysis results
     var i = 0
     var max = capabilityAnalysisResults.size
 
-    for ((currentMethod, currentMethodCaps, subtype) <- capabilityAnalysisResults) {
+    for (analysisResult <- capabilityAnalysisResults) {
+
+      val cls = analysisResult.analyzedMethod.classFile
+      val fields = cls.fields
+      val constructors = cls.methods.filter(method => method.isConstructor && method.parameterTypes.nonEmpty)
+
+      var map = scala.collection.mutable.Map.empty[String, Set[(Method, Int)]]
+
+      for (field <- fields) {
+        var set = Set.empty[(Method, Int)]
+
+        for (c <- constructors.filter(c => c.parameterTypes.contains(field.fieldType))) {
+          set += ((c, c.parameterTypes.indexOf(field.fieldType)))
+        }
+
+        if (set.nonEmpty) map += field.name -> set
+      }
+
       var listOfSubtypes = ListBuffer.empty[String]
       i = i + 1
       printf(i + "/" + max + "\n")
- 
-      //currentMethod.parameterTypes.toSet ++ currentMethod.body.get.instructions.filter(p)
+
       // loop over method instructions
-      for ((pc, instruction) <- currentMethod.body.get.associateWithIndex()) {
+      for ((pc, instruction) <- analysisResult.analyzedMethod.body.get.associateWithIndex()) {
         var calledClass: ObjectType = null
-        var calledMethod: String = null //MethodDescriptor = null
+        var calledMethod: String = null
         var calledMethodDescriptor: MethodDescriptor = null
 
         instruction match {
-          //case INVOKEDYNAMIC(bootstrapMethod, name, methodDescriptor) => {
-          // no declaring class
-          // TODO handle INVOKEDYNAMIC instruction
-          //}
           case INVOKEINTERFACE(declaringClass, methodName, methodDescriptor) => {
             calledClass = declaringClass
             calledMethod = methodName
@@ -85,8 +101,20 @@ class SubtypeCapabilityAnalysis(project: Project[URL], capMap: HashMap[Method, H
           case _ => { /* do nothing */ }
         }
 
-        // Check if the two parameters calledClass and calledMethod are set
-        if (calledClass != null && calledMethod != null && calledMethodDescriptor != null) {
+        /*
+         * Check if:
+         *    1. the three parameters calledClass and calledMethod and calledMethodDescriptor are set
+         *    2. the called class is of interest
+         */
+        if (calledClass != null
+          && calledMethod != null
+          && calledMethodDescriptor != null //&& ClassFilter.apply(calledClass.fqn)) {
+          ) { // TODO FILTER! && ClassFilter.filterCallingType(currentMethod, pc, project, calledClass.fqn)) {
+
+          val callingTypeCheck = ClassFilter.findCallingType(analysisResult.analyzedMethod, pc, project)
+          val callingTypes = if (callingTypeCheck.isEmpty) Set((calledClass, -1, "")) else callingTypeCheck
+
+          callingTypes.filter(ct => ct._3.nonEmpty).foreach(ct => if (map.contains(ct._3)) map(ct._3))
 
           // determine an ID that identifies a method inside a class
           // ##################################################################
@@ -97,66 +125,44 @@ class SubtypeCapabilityAnalysis(project: Project[URL], capMap: HashMap[Method, H
 
           // check if the called method is part of a class with subtypes
           // ################################################################
-          if (hasSubtypes(calledClass)) {
-            val methods = getCalledMethodsOfSubclassTypes(calledClass, calledMethodID)
+          for (callingType <- callingTypes) {
+            if (hasSubtypes(callingType._1)) {
+              val methods = getCalledMethodsOfSubclassTypes(callingType._1, calledMethodID)
 
-            if (methods != null) {
-              // add capabilities of subtype methods to super method
-              for ((method, subclassType) <- methods) {
+              if (methods != null) {
+                // add capabilities of subtype methods to super method
+                for ((method, subclassType) <- methods) {
+                  if (capMap.contains(method)) {
+                    val capMapEntry = capMap.get(method)
+                    val newMethodCapsSet: HashSet[Capability] = new HashSet[Capability]
+                    val newMethodCaps = capMapEntry.get
 
-                //                val capMapEntry = capMap.find(capMapEntry => {
-                //                  if (capMapEntry._1 == None || method == None) {
-                //                    false
-                //                  } else {
-                //                    capMapEntry._1.toJava.equals(method.toJava)
-                //                  }
-                //                })
+                    // create new hashmap of caps that contains the caps of the original hashmap
+                    for (cap <- analysisResult.capabilities) {
+                      newMethodCapsSet.add(cap)
+                    }
 
-                if (capMap.contains(method)) {
-                  val capMapEntry = capMap.get(method)
+                    // add new caps
+                    for (cap <- newMethodCaps.toList) {
+                      // TODO do not add the found caps but create an additional entry
+                      // that includes this found caps
+                      newMethodCapsSet.add(cap)
 
-                  val newMethodCapsSet: HashSet[Capability] = new HashSet[Capability]
+                      // TODO store subtype description
+                    }
 
-                  //                if (!capMapEntry.isEmpty) {
-                  val newMethodCaps = capMapEntry.get
-
-                  // create new hashmap of caps that contains the caps of the original hashmap
-                  for (cap <- currentMethodCaps) {
-                    newMethodCapsSet.add(cap)
+                    CapabilitiesSubtypeAnalysis.+=(new AnalysisResult(analysisResult.analyzedMethod, newMethodCapsSet.toList, 
+                        subclassType, callingType._2, callingType._3, 
+                        if(callingType._3.nonEmpty && map.contains(callingType._3)) map(callingType._3) else Set()))
                   }
-
-                  // add new caps
-                  for (cap <- newMethodCaps.toList) {
-                    // TODO do not add the found caps but create an additional entry
-                    // that includes this found caps
-                    newMethodCapsSet.add(cap)
-
-                    // TODO store subtype description
-                  }
-
-                  CapabilitiesSubtypeAnalysis.+=((currentMethod, newMethodCapsSet, subclassType))
                 }
-
-                //                CapabilitiesSubtypeAnalysis.+=((currentMethod, newMethodCapsSet, subclassType))
               }
-
-              // add subtypes to the list of subtypes without duplicates
-              //for (subtype <- methods._2.toList) {
-              //  if (!listOfSubtypes.contains(subtype)) {
-              //    listOfSubtypes.+=(subtype)
-              //  }
-              //}
-
             }
-            //}
           }
         }
       }
-      //CapabilitiesSubtypeAnalysis.+=((currentMethod, currentMethodCaps, listOfSubtypes.toList))
-
     }
-
-    return CapabilitiesSubtypeAnalysis.toList
+    return CapabilitiesSubtypeAnalysis
   }
 
   /**

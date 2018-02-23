@@ -36,6 +36,7 @@ import org.opalj.br.analyses.Project
 import de.tud.cs.peaks.capabilities.Capability
 import de.tud.cs.peaks.capabilities.CapabilityAnalysis
 import de.tud.cs.peaks.opalreports.StatisticalReport
+import de.tud.cs.peaks.capabilities.AnalysisResult
 
 /**
  * This object does analyze the some library or project to figure out
@@ -69,7 +70,7 @@ object TransitivCallsAnalysis extends CapabilityAnalysis {
 
     val transitiveHull = calulateTransitiveHull(nativeMethods, capMap, callGraph, project)
 
-    val methodsWithCapabilities = getReportTuples(transitiveHull, capMap, project).map(entry => (entry._1, entry._2, ""))
+    val methodsWithCapabilities = getReportTuples(transitiveHull, capMap, project).map(entry => new AnalysisResult(entry._1, entry._2.toList, "", -1, "", Set()))
 
     val capFilter = _PARAM_MAP.collect { case (key, value) if parameters.contains(key) => value }
     val listMethods = capFilter.nonEmpty || parameters.contains("-lm")

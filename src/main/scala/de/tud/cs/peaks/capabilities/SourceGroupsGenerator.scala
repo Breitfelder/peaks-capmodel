@@ -8,14 +8,14 @@ object SourceGroupsGenerator {
 
   var set = Array("FS", "GUI", "NET", "SYSTEM", "CLIPBOARD").toList
   var tmpCap = List[String]()
-  var capGroups = HashMap.empty[List[String], List[(Method, List[String], String)]]
+  var capGroups = HashMap.empty[List[String], List[AnalysisResult]]
 
-  def getSourceGroups(): HashMap[List[String], List[(Method, List[String], String)]] = {
+  def getSourceGroups(): HashMap[List[String], List[AnalysisResult]] = {
     init()
     return capGroups
   }
 
-  def getSourceGroups(set: List[String]): HashMap[List[String], List[(Method, List[String], String)]] = {
+  def getSourceGroups(set: List[String]): HashMap[List[String], List[AnalysisResult]] = {
     this.set = set
     init()
     return capGroups
@@ -29,7 +29,7 @@ object SourceGroupsGenerator {
       subset = List[String]() // refresh for every iteration
       subset = subset.::(cap.intern())
 
-      capGroups.put(subset, List[(Method, List[String], String)]())
+      capGroups.put(subset, List[AnalysisResult]())
 
       power(cap.intern(), subset)
 
@@ -43,7 +43,7 @@ object SourceGroupsGenerator {
         val subset = caps.::(addCap.intern()).sorted
 
         capGroups.put(subset //    .sorted.foldLeft("") { (z, e) => if (z.equals("")) { e } else { z + ";" + e } }
-        , List[(Method, List[String], String)]())
+        , List[AnalysisResult]())
 
         if (subset.size < set.size) {
           power(cap.intern(), subset)

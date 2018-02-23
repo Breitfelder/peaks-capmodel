@@ -370,15 +370,15 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
    *       and a Set of Capabilities which were identified by the capability inference algorithm.
    * @param filterSet A Set of Capabilities which is used to filter interesting methods.
    */
-  protected def printMethods(methodsWithCapabilities: Set[(Method, HashSet[Capability], String)], filterSet: Set[Capability], project: Project[URL]): Unit = {
-    def formatMethod(method: Method, capSet: HashSet[Capability], project: Project[URL]): String = method.classFile.fqn + "  -  " + method.toString() + " => " + capSet.map(x ⇒ x.shortForm()).mkString("[", ", ", "]")
+  protected def printMethods(methodsWithCapabilities: Set[AnalysisResult], filterSet: Set[Capability], project: Project[URL]): Unit = {
+    def formatMethod(method: Method, capSet: List[Capability], project: Project[URL]): String = method.classFile.fqn + "  -  " + method.toString() + " => " + capSet.map(x ⇒ x.shortForm()).mkString("[", ", ", "]")
 
-    for ((method, capSet, subtype) <- methodsWithCapabilities)
+    for (analysisResult <- methodsWithCapabilities)
       if (filterSet.nonEmpty) {
-        if (capSet.intersect(filterSet).size > 0)
-          println(formatMethod(method, capSet, project))
+        if (analysisResult.capabilities.toSet.intersect(filterSet).size > 0)
+          println(formatMethod(analysisResult.analyzedMethod, analysisResult.capabilities, project))
       } else
-        println(formatMethod(method, capSet, project))
+        println(formatMethod(analysisResult.analyzedMethod, analysisResult.capabilities, project))
   }
 
   /**
@@ -388,7 +388,7 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
    */
   override def doAnalyze(project: Project[URL], parameters: Seq[String], isInterrupted: () ⇒ Boolean): CapabilityAnaylsisResult = {
 
-    val methodsWithCapabilities: Iterable[(Method, HashSet[Capability], String)] = computeCapabilities(project, parameters)
+    val methodsWithCapabilities: Iterable[AnalysisResult] = computeCapabilities(project, parameters)
 
     val capFilter = _PARAM_MAP.collect { case (key, value) if parameters.contains(key) => value }
     val listMethods = capFilter.nonEmpty || parameters.contains("-lm")
@@ -407,7 +407,7 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
     // original:      printToFile(new File("/Users/benhermann/Desktop/caps.csv")) { p => p.write(fullJarName.concat(",").concat(methodsWithCapabilities.foldLeft(Set.empty[Capability])((res, cur) ⇒ res.++(cur._2)).map { x ⇒ x.shortForm() }.mkString("[", ", ", "]")).concat("\n"))}
 
     printToFile(new File("caps.csv")) {
-      p => p.write(fullJarName.concat(",").concat(methodsWithCapabilities.foldLeft(Set.empty[Capability])((res, cur) ⇒ res.++(cur._2)).map { x ⇒ x.shortForm() }.mkString("[", ", ", "]")).concat("\n"))
+      p => p.write(fullJarName.concat(",").concat(methodsWithCapabilities.foldLeft(Set.empty[Capability])((res, cur) ⇒ res.++(cur.capabilities)).map { x ⇒ x.shortForm() }.mkString("[", ", ", "]")).concat("\n"))
     }
 
     // output capability analysis results
@@ -415,12 +415,12 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
     val sourceGroups = SourceGroupsGenerator.getSourceGroups() // power set of all capability combinations
 
     // loop over analysis results and assign the results to the appropriate source group
-    for ((method, caps, subtype) <- methodsWithCapabilities) {
-      val capList = caps.map(cap => cap.name.intern()).filter(cap => CapMapper.isValidCap(cap)).toList.sorted
+    for (analysisResult <- methodsWithCapabilities) {
+      val capList = analysisResult.capabilities.map(cap => cap.name.intern()).filter(cap => CapMapper.isValidCap(cap)).toList.sorted
 
       if (sourceGroups.contains(capList) && !capList.isEmpty) {
         val sourceGroup = sourceGroups(capList)
-        sourceGroups.put(capList, ((method, capList.map(cap => CapMapper.mapCap(cap)), subtype)) :: sourceGroup)
+        sourceGroups.put(capList, (new AnalysisResult(analysisResult.analyzedMethod, analysisResult.capabilities, analysisResult.subType, analysisResult.paramIndex, analysisResult.name, analysisResult.constructorParams)) :: sourceGroup)
       }
     }
 
@@ -429,11 +429,12 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
       outputFile = new File("resources/test/test_tmp_results/tmp_test_result.xml")
     else
       outputFile = new File("subtype_analysis_result.xml")
-    
-    // write results to file
-    AnalysisResultWriter.outputCapabilities(sourceGroups, outputFile)
 
-    CapabilityReport(methodsWithCapabilities.foldLeft(Set.empty[Capability])((res, cur) ⇒ res.++(cur._2)))
+    // write results to file
+    val analysisResultWriter = new AnalysisResultWriter(new FileWriter(outputFile))
+    analysisResultWriter.outputCapabilities(sourceGroups)
+
+    CapabilityReport(methodsWithCapabilities.foldLeft(Set.empty[Capability])((res, cur) ⇒ res.++(cur.capabilities)))
   }
 
   // original method computeCapabilities
@@ -459,7 +460,7 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
    *
    * TODO not finished yet
    */
-  def computeCapabilities(project: Project[URL], parameters: Seq[String]): Iterable[(Method, HashSet[Capability], String)] = {
+  def computeCapabilities(project: Project[URL], parameters: Seq[String]): Iterable[AnalysisResult] = {
     val capMap = HashMap.empty[Method, HashSet[Capability]]
     val nativeMethods = getNativeMethods(project) // all methods of the project that are includes in the rt.jar
 
@@ -469,7 +470,7 @@ trait CapabilityAnalysis extends AnalysisExecutor with OneStepAnalysis[URL, Capa
     // start actual capabilities analysis
     val callGraph = buildCallGraph(project)
     val transitiveHull = calulateTransitiveHull(nativeMethods, capMap, callGraph, project)
-    val methodsWithCapabilities = getReportTuples(transitiveHull, capMap, project).map(entry => (entry._1, entry._2, "no subtype"))
+    val methodsWithCapabilities = getReportTuples(transitiveHull, capMap, project).map(entry => new AnalysisResult(entry._1, entry._2.toList, "no subtype", -1, "", Set()))
 
     // perform a subtype analysis if the parameter -sa is set.
     if (parameters.contains("-sa")) {
